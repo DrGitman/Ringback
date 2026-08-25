@@ -122,67 +122,94 @@ def build_task(case: Case, student, tenant: dict) -> str:
     return "\n\n".join(lines)
 
 
-async def handle_case(case_id: int) -> None:
+def _mark_errored(case_id: int, message: str) -> None:
+    """Last-resort handler so a malformed or failing CALL-E response ends a
+    case visibly on the dashboard instead of leaving it stuck on "calling"
+    forever with a background task that silently died.
+    """
     with Session(engine) as session:
         case = session.get(Case, case_id)
-        tenant = load_tenant(case.tenant_id)
-        student = directory.lookup(case.student_number) if case.student_number else None
-        schema = _schema_for(case.intent)
-
-        task = build_task(case, student, tenant)
-        case.run_id = client.dispatch(task=task, phone=case.phone, result_schema=schema)
-        case.call_attempts = 1
-        case.status = "calling"
+        if case is None:
+            return
+        case.status = "failed"
+        case.call_status = f"error: {message[:200]}"
         session.add(case)
         session.commit()
+
+
+async def handle_case(case_id: int) -> None:
+    try:
+        with Session(engine) as session:
+            case = session.get(Case, case_id)
+            tenant = load_tenant(case.tenant_id)
+            student = directory.lookup(case.student_number) if case.student_number else None
+            schema = _schema_for(case.intent)
+
+            task = build_task(case, student, tenant)
+            case.run_id = client.dispatch(task=task, phone=case.phone, result_schema=schema)
+            case.call_attempts = 1
+            case.status = "calling"
+            session.add(case)
+            session.commit()
+    except Exception as exc:
+        _mark_errored(case_id, str(exc))
+        return
 
     await asyncio.sleep(WAIT_FIRST)
 
     while True:
-        with Session(engine) as session:
-            case = session.get(Case, case_id)
-            if case is None or case.status in ("resolved", "routed", "failed"):
-                return
+        try:
+            with Session(engine) as session:
+                case = session.get(Case, case_id)
+                if case is None or case.status in ("resolved", "routed", "failed"):
+                    return
 
-            result = client.get_result(case.run_id)
+                result = client.get_result(case.run_id)
 
-            if result.status == "in_progress":
-                pass
-            elif result.status == "completed":
-                structured = result.structured_result or {}
-                set_structured_result(case, structured)
-                set_transcript(case, result.transcript)
-                case.completion_confidence = result.completion_confidence
-                case.call_status = "completed"
+                if result.status == "in_progress":
+                    pass
+                elif result.status == "completed":
+                    structured = result.structured_result
+                    if not isinstance(structured, dict):
+                        structured = {}
+                    set_structured_result(case, structured)
+                    set_transcript(case, result.transcript)
+                    case.completion_confidence = result.completion_confidence
+                    case.call_status = "completed"
 
-                tenant = load_tenant(case.tenant_id)
-                if structured.get("resolved") is True:
-                    case.status = "resolved"
-                else:
-                    route_case(case, tenant)
-                    case.status = "routed"
-                session.add(case)
-                session.commit()
-                return
-            else:
-                case.call_status = result.status
-                if case.call_attempts >= MAX_ATTEMPTS:
-                    case.status = "failed"
+                    tenant = load_tenant(case.tenant_id)
+                    if structured.get("resolved") is True:
+                        case.status = "resolved"
+                    else:
+                        route_case(case, tenant)
+                        case.status = "routed"
                     session.add(case)
                     session.commit()
                     return
+                else:
+                    case.call_status = result.status
+                    if case.call_attempts >= MAX_ATTEMPTS:
+                        case.status = "failed"
+                        session.add(case)
+                        session.commit()
+                        return
 
-                tenant = load_tenant(case.tenant_id)
-                student = directory.lookup(case.student_number) if case.student_number else None
-                task = build_task(case, student, tenant)
-                case.run_id = client.dispatch(
-                    task=task, phone=case.phone, result_schema=_schema_for(case.intent)
-                )
-                case.call_attempts += 1
-                case.status = "calling"
-                session.add(case)
-                session.commit()
-                await asyncio.sleep(WAIT_FIRST)
-                continue
+                    tenant = load_tenant(case.tenant_id)
+                    student = (
+                        directory.lookup(case.student_number) if case.student_number else None
+                    )
+                    task = build_task(case, student, tenant)
+                    case.run_id = client.dispatch(
+                        task=task, phone=case.phone, result_schema=_schema_for(case.intent)
+                    )
+                    case.call_attempts += 1
+                    case.status = "calling"
+                    session.add(case)
+                    session.commit()
+                    await asyncio.sleep(WAIT_FIRST)
+                    continue
+        except Exception as exc:
+            _mark_errored(case_id, str(exc))
+            return
 
         await asyncio.sleep(POLL_INTERVAL)

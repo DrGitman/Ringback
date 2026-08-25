@@ -2,7 +2,7 @@
 
 **[Demo video — add link here before submission]**
 
-**Callback-first voice agent for university offices.** Students leave a query; CALL-E calls back and resolves it.
+**A callback-first front door for university admin offices, built on CALL-E.** Students leave a query; CALL-E calls back and resolves it.
 
 Ringback turns "please hold" into "we'll call you right back." A student fills in a fifteen-second web form with their question and hangs up on nothing, because there was never a call to hang up on. Ringback classifies the query, pulls their record (or the right knowledge-base article, if they're not a registered student), and dispatches a CALL-E agent to call them back and resolve it — or routes it to the one named person who can, with the full context already attached.
 
@@ -44,11 +44,17 @@ Resolved ───────────────────────�
 
 The dashboard polls `GET /api/cases` every 2 seconds — no websockets — so a judge watching the demo sees a case's status change on its own.
 
+## Who's the agent here
+
+Ringback itself is a deterministic pipeline: classify → look up → fill a template → dispatch → poll → route. Every branch above is code that runs the same way on every call — there's no model in Ringback deciding what to do next.
+
+**CALL-E is the agent.** It plans the call, adapts in real time to whatever the student actually says, handles interruptions and voicemail, and returns the structured result Ringback acts on. Ringback orchestrates an agent; it is not one itself, and that's a deliberate choice, not a shortfall — a pipeline that behaves identically on take four is worth more than architectural cleverness when you're filming a three-minute demo. See "Future work" below for what a genuinely agentic version of Ringback would look like, and why it isn't built yet.
+
 ## Scope: three intents, on purpose
 
 1. **Proof of registration** — resolvable. Confirm identity, check status, explain the document is ready or blocked by a fee balance.
 2. **Subject cancellation** — resolvable with a deadline check. Confirm the subject, whether the drop window is open, and the fee implication.
-3. **Anything else** — deliberately unresolvable by design. The agent gathers detail from the caller and the knowledge base, then the case routes to a named office.
+3. **Anything else** — deliberately unresolvable by design. CALL-E gathers detail from the caller, working from the knowledge-base article Ringback selected, then the case routes to a named office.
 
 The third one is the feature, not a fallback: "couldn't solve it, but here's exactly which office, which person, and the full context already attached" is the non-obvious part of this project.
 
@@ -135,6 +141,8 @@ uvicorn app.main:app --port 8000
 
 ## Future work
 
+- **Agentic escalation loop — the biggest idea here, deliberately deferred.** When a case can't be resolved on the first call, dispatch a *second* CALL-E call to the relevant office, ask the question on the student's behalf, then call the student back with the answer. Plan → execute → observe → act again, using CALL-E twice per case. This is the one change that would make Ringback itself agentic rather than a deterministic orchestrator, and it's a direct answer to "no transfers, no re-explaining" — the system does the transfer instead of a human. Not built before day 14 on purpose: it doubles the call budget per case and adds a second failure surface, and the core pipeline needs to be proven end to end first against a live account. Worth revisiting as the demo video's closing beat if there's schedule margin after day 8.
+- **Model-backed classifier and router.** Swap the keyword classifier for a single Claude call returning `{intent, confidence, entities}` — cheap, and handles phrasing keywords miss ("won't let me download it", "can I still drop this subject"). Similarly, let a model pick the routing office and write the escalation reason from the structured result, instead of the static `ROUTING_TABLE` dict. Neither changes the architecture; both make the judgment sharper. Worth doing once the pipeline is verified against real CALL-E output, not before.
 - **USSD intake** — a short code for students on feature phones with no data.
 - **Live SIS connectors** — `PostgresDirectory` / `RESTDirectory` implementing the same `StudentDirectory` interface as the mock JSON directory, against a real student information system.
 - **Tenant self-service** — signup, KB upload, and office-directory configuration without editing JSON by hand.

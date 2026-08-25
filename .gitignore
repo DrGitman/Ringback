@@ -7,3 +7,5 @@ ringback.db
 
 node_modules/
 web/dist/
+
+CLAUDE.md
