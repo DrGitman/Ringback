@@ -25,6 +25,30 @@ class CallResult:
     evidence: Optional[str] = None
 
 
+def parse_call_response(data: dict) -> CallResult:
+    """Maps a raw GET /v1/calls/{id} JSON body to a CallResult. Pulled out of
+    _RealTransport so a saved real response (tests/fixtures/*.json) can be
+    replayed through the exact same parsing Ringback uses live, without
+    spending another call. See tests/replay_fixture.py.
+    """
+    status = data.get("status")
+
+    if status in ("queued", "planning", "calling", "in_progress"):
+        return CallResult(status="in_progress")
+
+    if status == "completed":
+        return CallResult(
+            status="completed",
+            structured_result=data.get("structured_result"),
+            transcript=data.get("transcript"),
+            completion_confidence=data.get("completion_confidence"),
+            task_completed=data.get("task_completed"),
+            evidence=data.get("evidence"),
+        )
+
+    return CallResult(status=status or "failed")
+
+
 class _RealTransport:
     """Wraps the CALL-E Developer API directly (POST /v1/calls, GET /v1/calls/{id})
     rather than the SDK, per the plan's own reasoning: creating and polling a call
@@ -53,23 +77,7 @@ class _RealTransport:
     def get_result(self, run_id: str) -> CallResult:
         response = self._client.get(f"/v1/calls/{run_id}")
         response.raise_for_status()
-        data = response.json()
-        status = data.get("status")
-
-        if status in ("queued", "planning", "calling", "in_progress"):
-            return CallResult(status="in_progress")
-
-        if status == "completed":
-            return CallResult(
-                status="completed",
-                structured_result=data.get("structured_result"),
-                transcript=data.get("transcript"),
-                completion_confidence=data.get("completion_confidence"),
-                task_completed=data.get("task_completed"),
-                evidence=data.get("evidence"),
-            )
-
-        return CallResult(status=status or "failed")
+        return parse_call_response(response.json())
 
 
 class _MockTransport:
