@@ -92,14 +92,15 @@ ringback/
 │   ├── classifier.py       # query → intent
 │   ├── router.py           # unresolved → named office
 │   ├── directory.py        # StudentDirectory interface + JSONDirectory
-│   ├── kb.py               # knowledge-base file loader/selector
+│   ├── retrieval/          # pre-call retrieval: chunker, TF-IDF retriever, briefing builder
 │   ├── tenants.py          # tenant config loader
 │   ├── models.py           # SQLModel Case model + SQLite engine
 │   └── data/students.json  # mock student information system, ~8 students
 ├── tenants/
 │   ├── nust.json           # configured
 │   └── unam.json           # exists to prove multi-tenancy
-├── kb/nust/*.md             # six knowledge-base articles, plain prose
+├── kb/nust/*.md             # six knowledge-base articles, with topic/office frontmatter
+├── scripts/                 # build_index.py, tune_threshold.py
 ├── web/                     # React + Vite dashboard and intake flow
 │   └── src/styles/tokens.css
 └── requirements.txt

@@ -175,6 +175,30 @@ function CaseDetail({ item }) {
           </div>
         )}
 
+        {item.retrieved_sources && item.retrieved_sources.length > 0 && (
+          <div className="inset-box">
+            <p className="field-label">Sources used</p>
+            <div className="sources-list">
+              {item.retrieved_sources.map((s) => (
+                <div key={s.chunk_id} className="sources-list__row">
+                  <span>{s.heading}</span>
+                  <MonoValue className="sources-list__score">{s.score.toFixed(2)}</MonoValue>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {item.no_kb_coverage && (
+          <div className="inset-box">
+            <p className="field-label">Sources used</p>
+            <p className="inset-box__query">
+              No reference material matched this question — the agent was told to say so
+              rather than guess.
+            </p>
+          </div>
+        )}
+
         {item.transcript && (
           <div className="inset-box">
             <p className="field-label">Transcript</p>

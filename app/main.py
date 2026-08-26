@@ -13,7 +13,14 @@ from sqlmodel import Session, select
 from . import dispatcher
 from .classifier import classify
 from .directory import JSONDirectory
-from .models import Case, engine, get_structured_result, get_transcript, init_db
+from .models import (
+    Case,
+    engine,
+    get_retrieved_sources,
+    get_structured_result,
+    get_transcript,
+    init_db,
+)
 
 directory = JSONDirectory()
 
@@ -61,6 +68,8 @@ class CaseOut(BaseModel):
     routed_office: Optional[str]
     routed_contact: Optional[str]
     routed_reason: Optional[str]
+    retrieved_sources: Optional[list]
+    no_kb_coverage: Optional[bool]
 
     @classmethod
     def from_case(cls, case: Case) -> "CaseOut":
@@ -84,6 +93,8 @@ class CaseOut(BaseModel):
             routed_office=case.routed_office,
             routed_contact=case.routed_contact,
             routed_reason=case.routed_reason,
+            retrieved_sources=get_retrieved_sources(case),
+            no_kb_coverage=case.no_kb_coverage,
         )
 
 

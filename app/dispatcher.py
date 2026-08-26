@@ -5,8 +5,14 @@ from sqlmodel import Session
 
 from .calle_client import CalleClient
 from .directory import JSONDirectory
-from .kb import KnowledgeBase
-from .models import Case, engine, set_structured_result, set_transcript
+from .models import (
+    Case,
+    engine,
+    set_retrieved_sources,
+    set_structured_result,
+    set_transcript,
+)
+from .retrieval import build_briefing, get_retriever
 from .router import route_case
 from .schemas import PROOF_OF_REG, SUBJECT_CANCELLATION, TRIAGE
 from .tenants import load_tenant
@@ -37,7 +43,23 @@ def _schema_for(intent: str) -> dict:
     return SCHEMAS.get(intent, TRIAGE)
 
 
-def build_task(case: Case, student, tenant: dict) -> str:
+def retrieve_briefing_for_case(case: Case, tenant: dict) -> str:
+    """Runs retrieval for the "other" intent and records provenance on the
+    case as a side effect, so a grounded answer is provably grounded on the
+    dashboard. Retrieval happens once per dispatch attempt, before the call
+    — CALL-E has no hook to query anything mid-call.
+    """
+    if case.intent != "other":
+        return ""
+
+    retriever = get_retriever(case.tenant_id)
+    briefing, sources, no_coverage = build_briefing(case.original_query, retriever, tenant)
+    set_retrieved_sources(case, sources)
+    case.no_kb_coverage = no_coverage
+    return briefing
+
+
+def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
     minutes = max(1, int((datetime.utcnow() - case.created_at).total_seconds() // 60))
     name = student.name if student else "the caller"
 
@@ -99,19 +121,14 @@ def build_task(case: Case, student, tenant: dict) -> str:
                 "proceeding."
             )
     else:
-        kb_text = KnowledgeBase(case.tenant_id).select(case.intent, case.category)
-        if kb_text:
-            lines.append(
-                f"Reference information you may use:\n---\n{kb_text}\n---\nAnswer only "
-                f"from this reference and the student's record. If the answer isn't "
-                f"there, say you'll have the right office follow up, and note exactly "
-                f"what they asked."
-            )
+        if briefing:
+            lines.append(briefing)
         else:
             lines.append(
-                "This question does not match a resolvable process. Listen carefully, "
-                "ask clarifying questions, and let them know you'll have the right "
-                "office follow up with exactly what they asked."
+                "This question does not match a resolvable process, and no reference "
+                "material covers it either. Listen carefully, ask clarifying questions, "
+                "and let them know you'll have the right office follow up with exactly "
+                "what they asked. Do not guess at an answer."
             )
 
     lines.append(
@@ -145,7 +162,8 @@ async def handle_case(case_id: int) -> None:
             student = directory.lookup(case.student_number) if case.student_number else None
             schema = _schema_for(case.intent)
 
-            task = build_task(case, student, tenant)
+            briefing = retrieve_briefing_for_case(case, tenant)
+            task = build_task(case, student, tenant, briefing)
             case.run_id = client.dispatch(task=task, phone=case.phone, result_schema=schema)
             case.call_attempts = 1
             case.status = "calling"
@@ -203,7 +221,8 @@ async def handle_case(case_id: int) -> None:
                     student = (
                         directory.lookup(case.student_number) if case.student_number else None
                     )
-                    task = build_task(case, student, tenant)
+                    briefing = retrieve_briefing_for_case(case, tenant)
+                    task = build_task(case, student, tenant, briefing)
                     case.run_id = client.dispatch(
                         task=task, phone=case.phone, result_schema=_schema_for(case.intent)
                     )

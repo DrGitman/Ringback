@@ -33,6 +33,9 @@ class Case(SQLModel, table=True):
     routed_contact: Optional[str] = None
     routed_reason: Optional[str] = None
 
+    retrieved_sources_json: Optional[str] = None
+    no_kb_coverage: Optional[bool] = None
+
 
 def get_structured_result(case: Case) -> Optional[dict]:
     return json.loads(case.structured_result_json) if case.structured_result_json else None
@@ -54,6 +57,14 @@ def get_transcript(case: Case) -> Optional[str]:
 
 def set_transcript(case: Case, value: Optional[str]) -> None:
     case.transcript_json = json.dumps(value) if value is not None else None
+
+
+def get_retrieved_sources(case: Case) -> Optional[list]:
+    return json.loads(case.retrieved_sources_json) if case.retrieved_sources_json else None
+
+
+def set_retrieved_sources(case: Case, value: Optional[list]) -> None:
+    case.retrieved_sources_json = json.dumps(value) if value else None
 
 
 def init_db() -> None:
