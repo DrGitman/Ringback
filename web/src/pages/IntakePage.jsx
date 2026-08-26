@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import PillButton from "../components/PillButton";
 import FieldLabel from "../components/FieldLabel";
+import logoMark from "../assets/ringback-mark.png";
 
 export default function IntakePage() {
   const [phoneLocal, setPhoneLocal] = useState("");
@@ -51,60 +52,68 @@ export default function IntakePage() {
   }
 
   return (
-    <div className="page page--mobile">
-      <div className="brand-row">
-        <span className="brand-mark" />
-        <span className="brand-name">Ringback</span>
+    <>
+      <div className="mobile-topbar">
+        <div className="brand-row" style={{ marginBottom: 0 }}>
+          <img src={logoMark} alt="" className="brand-mark" />
+          <span className="brand-name">Ringback</span>
+        </div>
       </div>
+      <div className="page page--mobile">
+        <h1 className="page-heading">Ask the Registrar's office</h1>
+        <p className="page-subheading">We'll call you back. No queue, no hold.</p>
 
-      <h1 className="page-heading">Ask the Registrar's office</h1>
-      <p className="page-subheading">We'll call you back. No queue, no hold.</p>
+        <Card>
+          <form onSubmit={handleSubmit} className="intake-form">
+            <div className="field">
+              <FieldLabel>Phone number</FieldLabel>
+              <div className="phone-input">
+                <span className="phone-input__prefix mono">+264</span>
+                <input
+                  className="phone-input__number mono"
+                  inputMode="numeric"
+                  placeholder="81 234 5678"
+                  value={phoneLocal}
+                  onChange={(e) => setPhoneLocal(e.target.value)}
+                />
+              </div>
+            </div>
 
-      <Card>
-        <form onSubmit={handleSubmit} className="intake-form">
-          <div className="field">
-            <FieldLabel>Phone number</FieldLabel>
-            <div className="phone-input">
-              <span className="phone-input__prefix mono">+264</span>
-              <input
-                className="phone-input__number mono"
-                inputMode="numeric"
-                placeholder="81 234 5678"
-                value={phoneLocal}
-                onChange={(e) => setPhoneLocal(e.target.value)}
+            <div className="field">
+              <FieldLabel>What do you need help with?</FieldLabel>
+              <textarea
+                rows={4}
+                placeholder="Type your question in your own words"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </div>
-          </div>
 
-          <div className="field">
-            <FieldLabel>What do you need help with?</FieldLabel>
-            <textarea
-              rows={4}
-              placeholder="Type your question in your own words"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+            <div className="field">
+              <FieldLabel hint="optional">Student number</FieldLabel>
+              <input
+                className="mono"
+                placeholder="220012345"
+                value={studentNumber}
+                onChange={(e) => setStudentNumber(e.target.value)}
+              />
+              <p className="field-help">If you're already registered</p>
+            </div>
 
-          <div className="field">
-            <FieldLabel hint="optional">Student number</FieldLabel>
-            <input
-              className="mono"
-              placeholder="220012345"
-              value={studentNumber}
-              onChange={(e) => setStudentNumber(e.target.value)}
-            />
-            <p className="field-help">If you're already registered</p>
-          </div>
+            {error && <p className="form-error">{error}</p>}
 
-          {error && <p className="form-error">{error}</p>}
-
-          <PillButton type="submit" variant="primary" className="full-width" disabled={submitting}>
-            {submitting ? "Requesting…" : "Request a callback"}
-          </PillButton>
-          <p className="form-note">Usually under 2 minutes</p>
-        </form>
-      </Card>
-    </div>
+            <PillButton
+              type="submit"
+              variant="primary"
+              className="full-width pill-button--tall"
+              disabled={submitting}
+            >
+              {submitting ? "Requesting…" : "Request a callback"}
+            </PillButton>
+            <p className="form-note">Usually under 2 minutes</p>
+          </form>
+        </Card>
+      </div>
+    </>
   );
 }

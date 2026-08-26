@@ -1,3 +1,9 @@
+---
+title: Fees and payment
+topic: fees_and_payment
+office: fees
+---
+
 Student accounts are billed once per semester, with the balance due before the start of teaching. Registration is not considered complete while a balance is outstanding above the university's minimum registration threshold, which affects the proof of registration and access to certain services.
 
 Payments can be made in three ways: in person at the Cashier's Office in the Admin Building during office hours, by electronic funds transfer using the student number as the reference, or through the student portal's online payment option where available. Cash deposits directly into the university's bank account without the correct reference are difficult to trace and can delay a payment being reflected on a student's account, so the student number as reference is important to mention.

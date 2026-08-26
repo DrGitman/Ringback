@@ -1,3 +1,9 @@
+---
+title: Proof of registration
+topic: proof_of_registration
+office: registrar
+---
+
 A proof of registration is the official document confirming a student is currently registered for the academic year. It's most often needed for a student's bank, a scholarship or sponsor, an employer, or immigration purposes.
 
 The document is generated automatically once two conditions are met: the student has completed registration for the current semester, and there is no outstanding balance on their student account. If either condition is not met, the system will not issue the document, even if the student has requested it.

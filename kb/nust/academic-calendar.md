@@ -1,3 +1,9 @@
+---
+title: Academic calendar
+topic: academic_calendar
+office: registrar
+---
+
 The academic year runs in two semesters. Semester one typically begins in late January and runs through to early June, including a mid-semester break; semester two runs from July through November, ending with the main examination period. Exact dates shift slightly year to year and are published on the academic calendar on the university website — when a student asks for a specific date, it's more reliable to point them to that published calendar than to state a date from memory, since calendars are revised periodically.
 
 Registration for each semester opens several weeks before teaching begins and has its own deadline — registering late is possible but usually carries a late registration fee, and in some cases needs the Registrar's Office's approval if it's very late.

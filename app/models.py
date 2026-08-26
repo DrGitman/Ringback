@@ -42,11 +42,17 @@ def set_structured_result(case: Case, value: Optional[dict]) -> None:
     case.structured_result_json = json.dumps(value) if value is not None else None
 
 
-def get_transcript(case: Case) -> Optional[list]:
-    return json.loads(case.transcript_json) if case.transcript_json else None
+def get_transcript(case: Case) -> Optional[str]:
+    if not case.transcript_json:
+        return None
+    value = json.loads(case.transcript_json)
+    # Defensive against pre-migration rows stored under the old list-of-turns
+    # shape: render as text instead of raising, so one old case can't 500 the
+    # whole /api/cases list the way it did during today's schema change.
+    return value if isinstance(value, str) else json.dumps(value)
 
 
-def set_transcript(case: Case, value: Optional[list]) -> None:
+def set_transcript(case: Case, value: Optional[str]) -> None:
     case.transcript_json = json.dumps(value) if value is not None else None
 
 

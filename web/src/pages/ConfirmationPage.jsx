@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import logoMark from "../assets/ringback-mark.png";
 
 export default function ConfirmationPage() {
   const location = useLocation();
@@ -6,7 +7,7 @@ export default function ConfirmationPage() {
 
   return (
     <div className="page page--mobile page--centered">
-      <span className="brand-mark brand-mark--lg" />
+      <img src={logoMark} alt="" className="brand-mark brand-mark--lg" />
       <h1 className="page-heading page-heading--center">We'll call you in about 2 minutes</h1>
 
       <div className="card confirmation-card">

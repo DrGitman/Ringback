@@ -1,3 +1,9 @@
+---
+title: Admission requirements
+topic: admission_requirements
+office: registrar
+---
+
 Admission to an undergraduate programme requires a National Senior Certificate or equivalent, meeting both the university's general minimum entry requirements and the specific subject requirements of the programme applied for. Requirements differ meaningfully between faculties — engineering and health science programmes typically require stronger mathematics and science grades than programmes in humanities or commerce, so a general "do I qualify" question can't be answered without knowing the specific programme.
 
 Applications are submitted online through the admissions portal and require certified copies of academic results, a certified copy of a national ID or passport, and the application fee. Uncertified or incomplete documents are one of the most common reasons an application is delayed rather than rejected outright — Admissions will usually request the missing document rather than closing the application, but the applicant needs to respond before a deadline to keep it active.

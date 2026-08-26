@@ -1,7 +1,12 @@
-export default function Panel({ title, children, className = "" }) {
+export default function Panel({ title, right, children, className = "" }) {
   return (
     <div className={`panel ${className}`}>
-      {title && <h2 className="panel__title">{title}</h2>}
+      {(title || right) && (
+        <div className="panel__header">
+          {title && <h2 className="panel__title">{title}</h2>}
+          {right}
+        </div>
+      )}
       {children}
     </div>
   );

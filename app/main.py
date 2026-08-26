@@ -46,6 +46,7 @@ class CaseOut(BaseModel):
     id: int
     tenant_id: str
     student_number: Optional[str]
+    student_name: Optional[str]
     phone: str
     original_query: str
     created_at: datetime
@@ -55,7 +56,7 @@ class CaseOut(BaseModel):
     call_attempts: int
     call_status: Optional[str]
     structured_result: Optional[dict]
-    transcript: Optional[list]
+    transcript: Optional[str]
     completion_confidence: Optional[float]
     routed_office: Optional[str]
     routed_contact: Optional[str]
@@ -63,10 +64,12 @@ class CaseOut(BaseModel):
 
     @classmethod
     def from_case(cls, case: Case) -> "CaseOut":
+        student = directory.lookup(case.student_number) if case.student_number else None
         return cls(
             id=case.id,
             tenant_id=case.tenant_id,
             student_number=case.student_number,
+            student_name=student.name if student else None,
             phone=case.phone,
             original_query=case.original_query,
             created_at=case.created_at,

@@ -1,3 +1,9 @@
+---
+title: Office hours
+topic: office_hours
+office: registrar
+---
+
 Administrative offices — the Registrar's Office, the Fees Office, the Cashier's Office, and Student Accommodation — are open Monday to Friday, 08:00 to 17:00, and closed on weekends and public holidays. The Cashier's Office closes for a short window over the lunch period, so a student planning an in-person payment right around midday should be told to check before travelling in.
 
 During the exam period and the first two weeks of each semester, queues at in-person offices are typically much longer than usual, which is part of why phone and online channels exist — a student who can be helped by phone or the student portal should be, rather than being told to visit in person if it isn't strictly necessary.

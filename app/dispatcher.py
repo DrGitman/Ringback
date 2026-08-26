@@ -158,6 +158,7 @@ async def handle_case(case_id: int) -> None:
     await asyncio.sleep(WAIT_FIRST)
 
     while True:
+        next_sleep = POLL_INTERVAL
         try:
             with Session(engine) as session:
                 case = session.get(Case, case_id)
@@ -165,6 +166,10 @@ async def handle_case(case_id: int) -> None:
                     return
 
                 result = client.get_result(case.run_id)
+                # CALL-E's next_step.poll_after_seconds, when present, is more
+                # current than our fixed interval — honour it (see calle_client.py).
+                if result.poll_after_seconds is not None:
+                    next_sleep = result.poll_after_seconds
 
                 if result.status == "in_progress":
                     pass
@@ -212,4 +217,4 @@ async def handle_case(case_id: int) -> None:
             _mark_errored(case_id, str(exc))
             return
 
-        await asyncio.sleep(POLL_INTERVAL)
+        await asyncio.sleep(next_sleep)

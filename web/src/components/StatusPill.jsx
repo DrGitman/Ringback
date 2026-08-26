@@ -9,9 +9,13 @@ const STATUS_STYLES = {
 
 export default function StatusPill({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.received;
+  const isLive = status === "calling";
   return (
     <span className="status-pill" style={{ background: style.bg, color: style.fg }}>
-      <span className="status-pill__dot" style={{ background: style.fg }} />
+      <span
+        className={`status-pill__dot ${isLive ? "status-pill__dot--pulse" : ""}`}
+        style={{ background: style.fg }}
+      />
       {style.label}
     </span>
   );
