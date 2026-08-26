@@ -54,7 +54,7 @@ Ringback itself is a deterministic pipeline: classify → look up → fill a tem
 
 1. **Proof of registration** — resolvable. Confirm identity, check status, explain the document is ready or blocked by a fee balance.
 2. **Subject cancellation** — resolvable with a deadline check. Confirm the subject, whether the drop window is open, and the fee implication.
-3. **Anything else** — deliberately unresolvable by design. CALL-E gathers detail from the caller, working from the knowledge-base article Ringback selected, then the case routes to a named office.
+3. **Anything else** — deliberately unresolvable by design. Ringback retrieves the KB passages most relevant to the caller's own words *before* dispatch (CALL-E has no hook to query anything mid-call) and briefs CALL-E with them; if nothing clears the relevance threshold, CALL-E is told plainly to say it doesn't know rather than guess. Either way, the case then routes to a named office.
 
 The third one is the feature, not a fallback: "couldn't solve it, but here's exactly which office, which person, and the full context already attached" is the non-obvious part of this project.
 
@@ -67,17 +67,28 @@ The third one is the feature, not a fallback: "couldn't solve it, but here's exa
 
 The dispatcher follows the documented polling rhythm against a live account (wait ~60s, then poll every 5–10s until terminal) and never re-fires a call with a stale identifier — a retry always dispatches a brand-new call and stores the new run id.
 
-**Current status:** `CALLE_API_KEY` has not been configured yet (Day 1 of the build plan — see below), so `calle_client.py` currently falls back to a local mock transport with deterministic per-phone outcomes, purely so the rest of the pipeline (classifier → dispatcher → router → dashboard) can be built and demoed before the account is wired in. Setting `CALLE_API_KEY` in `.env` switches to real calls with no other code changes. The MCP transport (`plan_call` / `run_call` / `get_call_run`) described in the CALL-E docs is the fallback if no API key is issued, and would live in this same file — it is not implemented yet.
+**Current status:** `CALLE_API_KEY` has not been configured yet (Day 1 of the build plan — see below), so `calle_client.py` currently falls back to a local mock transport with deterministic per-phone outcomes, purely so the rest of the pipeline (classifier → dispatcher → router → dashboard) can be built and demoed before the account is wired in. `parse_call_response()` is written against a real `get_call_run` payload rather than the docs' shorthand example (uppercase/spaced statuses, `result.extracted`, `result.outcome.*`, string transcript) — see `tests/test_parse_call_response.py` and `tests/replay_fixture.py`. Setting `CALLE_API_KEY` in `.env` switches to real calls with no other code changes. The MCP transport (`plan_call` / `run_call` / `get_call_run`) is the fallback if no API key is issued, and would live in this same file — it is not implemented yet.
 
 ## Known limitations
 
 - **Namibia is an International line.** Calls to `+264` numbers are placed from CALL-E's international numbers, which the CALL-E docs describe as primarily for testing. Students will see a foreign number ring rather than a local one. Fix path: request a local NA line from the CALL-E team for production use.
-- **The knowledge base and classifier are intentionally simple.** Keyword matching over three intents costs nothing and is transparent to debug; it would be replaced by a real NLU step for a production deployment with more intents.
+- **The classifier is intentionally simple.** Keyword matching over three intents costs nothing and is transparent to debug; it would be replaced by a real NLU step for a production deployment with more intents.
+- **Retrieval is TF-IDF, which is paraphrase-blind.** "What are your office hours" retrieves `office-hours.md` at 0.215 (well above the 0.09 threshold); "are you open on saturdays and can I come after 5pm" — same underlying question — scores 0.071 and correctly gets no reference material rather than a weak, possibly-misleading one. That's the right failure mode (say "I don't know" rather than guess), but it means phrasing matters more than it would with embeddings. See `docs/retrieval-spec.md` §2 for why TF-IDF was chosen anyway, and `scripts/tune_threshold.py` to re-tune after any KB change.
 - **Single process, SQLite, in-process polling.** Fine for a hackathon dashboard with a handful of concurrent calls; would need a real task queue (Celery, etc.) and a proper database at any real scale.
 
 ## How this generalises
 
-Nothing about NUST is hardcoded in `app/`. A university is a `tenants/<id>.json` file (identity, tone, office directory) plus a `kb/<id>/*.md` folder. `tenants/unam.json` exists specifically to prove this — a second university is a JSON file and a folder of markdown, not a code change.
+Nothing about NUST is hardcoded in `app/`. A university is a `tenants/<id>.json` file (identity, tone, office directory) plus a `kb/<id>/*.md` folder — run `python scripts/build_index.py <tenant>` after adding or editing KB files. `tenants/unam.json` exists specifically to prove this — a second university is a JSON file and a folder of markdown, not a code change.
+
+### Connecting your own data
+
+Three different shapes, at three different levels of "actually built":
+
+- **Documents** (prospectus, handbooks, fee schedules) — a folder to drop files into. This is how `kb/nust/` already works; `scripts/build_index.py` rebuilds the retrieval index from it. A `scripts/ingest.py` that chunks PDFs and writes the frontmatter automatically would turn this into a genuine one-command onboarding path, but isn't built.
+- **Student records** — the `StudentDirectory` protocol in `app/directory.py`, currently backed by `JSONDirectory` (the mock SIS). `PostgresDirectory` / `RESTDirectory` against a real system are documented future implementations behind the same interface, not built.
+- **Live systems** (Moodle, ITS) — would need to be a sync job, not a live query, since a phone call can't block on a slow ITS instance. Not built, not started.
+
+A signup-and-upload UI for all of this is two to three weeks of auth, tenant isolation and credential storage — invisible in a three-minute video, and it competes for the same days as the escalation loop below. `tenants/` plus this documented interface makes the same claim honestly, today.
 
 ## Repo structure
 
@@ -142,12 +153,11 @@ uvicorn app.main:app --port 8000
 
 ## Future work
 
-- **Agentic escalation loop — the biggest idea here, deliberately deferred.** When a case can't be resolved on the first call, dispatch a *second* CALL-E call to the relevant office, ask the question on the student's behalf, then call the student back with the answer. Plan → execute → observe → act again, using CALL-E twice per case. This is the one change that would make Ringback itself agentic rather than a deterministic orchestrator, and it's a direct answer to "no transfers, no re-explaining" — the system does the transfer instead of a human. Not built before day 14 on purpose: it doubles the call budget per case and adds a second failure surface, and the core pipeline needs to be proven end to end first against a live account. Worth revisiting as the demo video's closing beat if there's schedule margin after day 8.
-- **Model-backed classifier and router.** Swap the keyword classifier for a single Claude call returning `{intent, confidence, entities}` — cheap, and handles phrasing keywords miss ("won't let me download it", "can I still drop this subject"). Similarly, let a model pick the routing office and write the escalation reason from the structured result, instead of the static `ROUTING_TABLE` dict. Neither changes the architecture; both make the judgment sharper. Worth doing once the pipeline is verified against real CALL-E output, not before.
-- **USSD intake** — a short code for students on feature phones with no data.
-- **Live SIS connectors** — `PostgresDirectory` / `RESTDirectory` implementing the same `StudentDirectory` interface as the mock JSON directory, against a real student information system.
-- **Tenant self-service** — signup, KB upload, and office-directory configuration without editing JSON by hand.
-- **A local NA calling line**, so students see a Namibian number rather than an international one.
+- **Agentic escalation loop — the biggest idea here, deliberately deferred.** When a case can't be resolved on the first call, dispatch a *second* CALL-E call to the relevant office, ask the question on the student's behalf, then call the student back with the answer. Plan → execute → observe → act again, using CALL-E twice per case. This is the one change that would make Ringback itself agentic rather than a deterministic orchestrator, and it's a direct answer to "no transfers, no re-explaining" — the system does the transfer instead of a human. Conditions to build it, not before: core pipeline proven against a *live* CALL-E account (not the mock), the extra call allocation approved, and the frontend already done. It needs a new case status (waiting on an outbound office call) and a second failure surface (what if the office doesn't answer either). Worth revisiting as the demo video's closing beat if all three hold by day 8.
+- **Model-backed classifier and router.** Swap the keyword classifier for a single Claude call returning `{intent, confidence, entities}` — cheap, and handles phrasing keywords miss ("won't let me download it"). Similarly, let a model pick the routing office and write the escalation reason from the structured result, instead of the static `ROUTING_TABLE` dict. Neither changes the architecture; both make the judgment sharper. Worth doing once the pipeline is verified against real CALL-E output.
+- **Embedding-based retrieval.** `app/retrieval/base.py`'s `Retriever` protocol is designed so an `EmbeddingRetriever` (sentence-transformers) is a one-line swap from `TfidfRetriever` — not built, since it's a ~2GB torch download that buys paraphrase tolerance TF-IDF doesn't have (see Known limitations), which only pays for itself once the corpus is large enough that lexical overlap stops being reliable.
+- **USSD intake** — a short code for students on feature phones with no data. Needs a carrier agreement (MTC/Telecom Namibia); not something that can be scheduled.
+- **A local NA calling line**, so students see a Namibian number rather than an international one. Costs one email to the CALL-E team — worth sending today, can't be built.
 
 ## Submission checklist
 

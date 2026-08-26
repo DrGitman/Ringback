@@ -146,6 +146,20 @@ class _RealTransport:
         return parse_call_response(_with_retry(_do))
 
 
+def _default_for_field(schema: dict, name: str):
+    """Picks a schema-appropriate placeholder for a required field the mock
+    scenario didn't specify, instead of blindly using True — which is wrong
+    for a string or enum field and was previously leaking a nonsensical
+    "resolved": True into schemas that don't even define that field.
+    """
+    prop = schema.get("properties", {}).get(name, {})
+    if prop.get("type") == "boolean":
+        return True
+    if "enum" in prop:
+        return prop["enum"][0]
+    return "Not specified in mock data."
+
+
 class _MockTransport:
     """Stands in until a live CALLE_API_KEY is configured (see the Day 1
     checklist in README.md). Outcomes are deterministic per phone number so
@@ -194,11 +208,13 @@ class _MockTransport:
         },
         "+264814567890": {"delay": 4, "status": "NO ANSWER", "extracted": None},
     }
-    _DEFAULT = {
-        "delay": 5,
-        "status": "COMPLETED",
-        "extracted": {"resolved": True, "identity_confirmed": True},
-    }
+    # Deliberately empty: which fields even apply differs per schema (TRIAGE
+    # has no "resolved" concept at all), so the generic fallback below fills
+    # required fields from the schema itself rather than assuming PROOF_OF_REG
+    # shape. A stray "resolved": True here previously leaked into TRIAGE
+    # results and made unresolvable "other" cases wrongly resolve instead of
+    # route.
+    _DEFAULT = {"delay": 5, "status": "COMPLETED", "extracted": {}}
 
     def __init__(self):
         self._runs: dict = {}
@@ -229,7 +245,7 @@ class _MockTransport:
 
         extracted = dict(scenario["extracted"] or {})
         for name in run["schema"].get("required", []):
-            extracted.setdefault(name, True)
+            extracted.setdefault(name, _default_for_field(run["schema"], name))
 
         return parse_call_response(
             {
