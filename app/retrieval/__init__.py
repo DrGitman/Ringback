@@ -25,12 +25,12 @@ from .base import Hit, Retriever
 from .chunker import Chunk, chunk_file
 from .tfidf import TfidfRetriever
 
-# Tuned against scripts/tune_threshold.py on the six-file nust KB: known
-# in-scope queries scored 0.107-0.210, known out-of-scope scored 0.000-0.071.
-# 0.09 sits in that gap. Below this, the KB genuinely doesn't cover the
+# Tuned against scripts/tune_threshold.py on the nine-file nust KB: known
+# in-scope queries scored 0.106-0.220, known out-of-scope scored 0.000-0.091.
+# 0.095 sits in that gap. Below this, the KB genuinely doesn't cover the
 # question — inject nothing rather than a weak match. Re-run the tuning
 # script and adjust this after any real change to the KB's size or content.
-TFIDF_MIN_SCORE = 0.09
+TFIDF_MIN_SCORE = 0.095
 
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"
 

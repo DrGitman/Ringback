@@ -56,7 +56,7 @@ office: registrar
 
 `office` matters — it's what the router uses when retrieval finds relevant material but the agent still can't resolve the query.
 
-**On expanding the corpus:** the six files here fit in a prompt, so retrieval adds machinery without adding knowledge until real NUST material (prospectus, academic calendar, faculty handbooks, fee schedules) is added.
+**On expanding the corpus:** the original six files fit in a prompt, so retrieval added machinery without adding knowledge until real NUST material was added — faculty officer contacts and confirmed 2025 calendar/holiday dates, sourced from the official institutional calendar and faculty officer PDFs in `kb/nust/NUST Staff Related Documents/` and `kb/nust/NUST Students Related Documents/`. Those source PDFs aren't ingested directly (the chunker only reads `*.md`); relevant material is hand-curated into frontmatter'd `.md` files in the same style as the rest of the KB, and low-value governance content (Council/Senate/committee meeting schedules, NCHE accreditation cycles) was deliberately left out — it's never something a student calls about. Re-run `scripts/build_index.py nust` and `scripts/tune_threshold.py nust` after any further change; TFIDF_MIN_SCORE was nudged from 0.09 to 0.095 when this corpus grew, since a 9-file corpus pushed one out-of-scope probe query just above the old threshold.
 
 ---
 

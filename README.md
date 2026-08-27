@@ -112,7 +112,7 @@ ringback/
 ├── tenants/
 │   ├── nust.json           # configured
 │   └── unam.json           # exists to prove multi-tenancy
-├── kb/nust/*.md             # six knowledge-base articles, with topic/office frontmatter
+├── kb/nust/*.md             # nine knowledge-base articles, with topic/office frontmatter
 ├── scripts/                 # build_index.py, tune_threshold.py
 ├── web/                     # React + Vite dashboard and intake flow
 │   └── src/styles/tokens.css
