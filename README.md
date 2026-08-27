@@ -80,13 +80,13 @@ The dispatcher follows the documented polling rhythm against a live account (wai
 
 ## How this generalises
 
-Nothing about NUST is hardcoded in `app/`. A university is a `tenants/<id>.json` file (identity, tone, office directory) plus a `kb/<id>/*.md` folder — run `python scripts/build_index.py <tenant>` after adding or editing KB files. `tenants/unam.json` exists specifically to prove this — a second university is a JSON file and a folder of markdown, not a code change.
+Nothing about NUST is hardcoded in `app/`. A university is a `tenants/<id>.json` file (identity, tone, office directory) plus a `kb/<id>/*.md` folder — `get_retriever()` compares file mtimes against the saved index and rebuilds automatically the next time it's called if any `.md` file changed, so editing the KB is enough on its own. `python scripts/build_index.py <tenant>` still exists to rebuild eagerly (e.g. right before `tune_threshold.py`, or in CI) rather than waiting for the next call. `tenants/unam.json` exists specifically to prove this — a second university is a JSON file and a folder of markdown, not a code change.
 
 ### Connecting your own data
 
 Three different shapes, at three different levels of "actually built":
 
-- **Documents** (prospectus, handbooks, fee schedules) — a folder to drop files into. This is how `kb/nust/` already works; `scripts/build_index.py` rebuilds the retrieval index from it. A `scripts/ingest.py` that chunks PDFs and writes the frontmatter automatically would turn this into a genuine one-command onboarding path, but isn't built.
+- **Documents** (prospectus, handbooks, fee schedules) — a folder to drop files into. This is how `kb/nust/` already works; the retrieval index rebuilds itself automatically once a `.md` file's mtime is newer than the saved index (`scripts/build_index.py` remains for an eager, on-demand rebuild). A `scripts/ingest.py` that chunks PDFs and writes the frontmatter automatically would turn this into a genuine one-command onboarding path, but isn't built.
 - **Student records** — the `StudentDirectory` protocol in `app/directory.py`, currently backed by `JSONDirectory` (the mock SIS). `PostgresDirectory` / `RESTDirectory` against a real system are documented future implementations behind the same interface, not built.
 - **Live systems** (Moodle, ITS) — would need to be a sync job, not a live query, since a phone call can't block on a slow ITS instance. Not built, not started.
 

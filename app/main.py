@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,10 @@ from .models import (
     get_transcript,
     init_db,
 )
+from .retrieval import get_retriever
+from .tenants import TENANTS_ROOT
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
 directory = JSONDirectory()
 
@@ -28,6 +33,8 @@ directory = JSONDirectory()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    for tenant_file in TENANTS_ROOT.glob("*.json"):
+        get_retriever(tenant_file.stem)
     yield
 
 

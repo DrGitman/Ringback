@@ -17,13 +17,17 @@ Two framings, same search underneath:
   record. The record always wins if the two ever disagree.
 """
 
+import logging
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Tuple
 
 from .base import Hit, Retriever
 from .chunker import Chunk, chunk_file
-from .tfidf import TfidfRetriever
+from .tfidf import INDEX_DIR, TfidfRetriever
+
+logger = logging.getLogger(__name__)
 
 # Tuned against scripts/tune_threshold.py on the nine-file nust KB: known
 # in-scope queries scored 0.106-0.220, known out-of-scope scored 0.000-0.091.
@@ -44,13 +48,40 @@ def _load_chunks(tenant_id: str) -> List[Chunk]:
     return chunks
 
 
+def _index_is_stale(tenant_id: str) -> bool:
+    """True if any kb/<tenant>/*.md file was edited after the index was last
+    built — a stale pickle used to mean new KB content sat on disk,
+    completely unsearchable, with nothing in code review or the app itself
+    hinting that it wasn't wired in.
+    """
+    index_path = INDEX_DIR / f"{tenant_id}.pkl"
+    if not index_path.exists():
+        return True
+    index_mtime = index_path.stat().st_mtime
+    md_files = list((KB_ROOT / tenant_id).glob("*.md"))
+    return any(md.stat().st_mtime > index_mtime for md in md_files)
+
+
 @lru_cache
 def get_retriever(tenant_id: str) -> Retriever:
-    loaded = TfidfRetriever.load(tenant_id)
-    if loaded is not None:
-        return loaded
+    if not _index_is_stale(tenant_id):
+        loaded = TfidfRetriever.load(tenant_id)
+        if loaded is not None:
+            logger.info(
+                "retrieval: %s, %d chunks, index loaded from cache", tenant_id, len(loaded.chunks)
+            )
+            return loaded
+
+    chunks = _load_chunks(tenant_id)
     retriever = TfidfRetriever()
-    retriever.build(_load_chunks(tenant_id))
+    retriever.build(chunks)
+    retriever.save(tenant_id)
+    logger.info(
+        "retrieval: %s, %d chunks, index built %s",
+        tenant_id,
+        len(chunks),
+        time.strftime("%H:%M"),
+    )
     return retriever
 
 

@@ -1,5 +1,7 @@
-"""Rebuild the TF-IDF index for a tenant's KB. Run after any change to
-kb/<tenant>/*.md.
+"""Eagerly rebuild the TF-IDF index for a tenant's KB. get_retriever()
+already rebuilds automatically once a kb/<tenant>/*.md file is newer than
+the saved index, so this script is for forcing it ahead of that — before
+tune_threshold.py, in CI, or to warm the cache right after an edit.
 
     python scripts/build_index.py nust
 """

@@ -69,6 +69,7 @@ Constraints followed:
 - scikit-learn only. No sentence-transformers, torch, or vector database — `EmbeddingRetriever` is a documented future swap behind the same `Retriever` protocol, not built now.
 - Nothing outside `app/retrieval/` imports `TfidfRetriever` directly; everything goes through the protocol.
 - Below threshold → no reference block injected, case marked `no_kb_coverage`. Never inject a weak match.
+- `get_retriever()` compares the newest `.md` mtime in `kb/<tenant>/` against the saved index's mtime and rebuilds automatically if the KB changed — a stale cached index used to mean new KB content sat on disk, completely unsearchable, with no signal anywhere that it wasn't wired in. `scripts/build_index.py` still exists for an eager, on-demand rebuild. Startup logs one line per tenant (`retrieval: nust, 18 chunks, index built 14:22` or `... index loaded from cache`) so an unexpectedly empty briefing on a call is fast to diagnose.
 - The "Sources used" panel uses only existing shared components — no new hardcoded colors, fonts, radii or sizes.
 
 ---
