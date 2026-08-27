@@ -12,7 +12,7 @@ from .models import (
     set_structured_result,
     set_transcript,
 )
-from .retrieval import build_briefing, get_retriever
+from .retrieval import build_briefing, build_supplementary_briefing, get_retriever
 from .router import route_case
 from .schemas import PROOF_OF_REG, SUBJECT_CANCELLATION, TRIAGE
 from .tenants import load_tenant
@@ -43,16 +43,31 @@ def _schema_for(intent: str) -> dict:
     return SCHEMAS.get(intent, TRIAGE)
 
 
-def retrieve_briefing_for_case(case: Case, tenant: dict) -> str:
-    """Runs retrieval for the "other" intent and records provenance on the
-    case as a side effect, so a grounded answer is provably grounded on the
+def retrieve_briefing_for_case(case: Case, student, tenant: dict) -> str:
+    """Runs retrieval for every intent and records provenance on the case as
+    a side effect, so a grounded answer is provably grounded on the
     dashboard. Retrieval happens once per dispatch attempt, before the call
     — CALL-E has no hook to query anything mid-call.
-    """
-    if case.intent != "other":
-        return ""
 
+    Record-backed intents (proof_of_registration, subject_cancellation with
+    a student on file) get the *supplementary* framing: their record is the
+    answer, this is background for anything it doesn't cover (e.g. they also
+    ask where the Cashier's Office is). A miss there is normal, not a
+    coverage failure, so no_kb_coverage is left alone rather than set True.
+    Everything else gets the primary framing, where the reference material
+    IS the answer and a miss means "tell them you don't know."
+    """
     retriever = get_retriever(case.tenant_id)
+    record_backed = case.intent in ("proof_of_registration", "subject_cancellation") and student
+
+    if record_backed:
+        briefing, sources, _ = build_supplementary_briefing(
+            case.original_query, retriever, tenant
+        )
+        if sources:
+            set_retrieved_sources(case, sources)
+        return briefing
+
     briefing, sources, no_coverage = build_briefing(case.original_query, retriever, tenant)
     set_retrieved_sources(case, sources)
     case.no_kb_coverage = no_coverage
@@ -104,6 +119,8 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
                 "student portal shortly, or can be collected in person from the "
                 "Registrar's Office."
             )
+        if briefing:
+            lines.append(briefing)
     elif case.intent == "subject_cancellation" and student:
         subject = student.subjects[0] if student.subjects else None
         if subject:
@@ -120,6 +137,8 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
                 "their record. Ask them to confirm the exact subject code before "
                 "proceeding."
             )
+        if briefing:
+            lines.append(briefing)
     else:
         if briefing:
             lines.append(briefing)
@@ -162,7 +181,7 @@ async def handle_case(case_id: int) -> None:
             student = directory.lookup(case.student_number) if case.student_number else None
             schema = _schema_for(case.intent)
 
-            briefing = retrieve_briefing_for_case(case, tenant)
+            briefing = retrieve_briefing_for_case(case, student, tenant)
             task = build_task(case, student, tenant, briefing)
             case.run_id = client.dispatch(task=task, phone=case.phone, result_schema=schema)
             case.call_attempts = 1
@@ -221,7 +240,7 @@ async def handle_case(case_id: int) -> None:
                     student = (
                         directory.lookup(case.student_number) if case.student_number else None
                     )
-                    briefing = retrieve_briefing_for_case(case, tenant)
+                    briefing = retrieve_briefing_for_case(case, student, tenant)
                     task = build_task(case, student, tenant, briefing)
                     case.run_id = client.dispatch(
                         task=task, phone=case.phone, result_schema=_schema_for(case.intent)

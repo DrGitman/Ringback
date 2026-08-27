@@ -54,9 +54,11 @@ Ringback itself is a deterministic pipeline: classify → look up → fill a tem
 
 1. **Proof of registration** — resolvable. Confirm identity, check status, explain the document is ready or blocked by a fee balance.
 2. **Subject cancellation** — resolvable with a deadline check. Confirm the subject, whether the drop window is open, and the fee implication.
-3. **Anything else** — deliberately unresolvable by design. Ringback retrieves the KB passages most relevant to the caller's own words *before* dispatch (CALL-E has no hook to query anything mid-call) and briefs CALL-E with them; if nothing clears the relevance threshold, CALL-E is told plainly to say it doesn't know rather than guess. Either way, the case then routes to a named office.
+3. **Anything else** — deliberately unresolvable by design, and always routes to a named office.
 
-The third one is the feature, not a fallback: "couldn't solve it, but here's exactly which office, which person, and the full context already attached" is the non-obvious part of this project.
+Retrieval runs on all three, but frames differently. For (1) and (2), the student's record is the answer — retrieval only adds background for anything the record doesn't cover (e.g. a proof-of-registration caller who also asks *where* the Cashier's Office is), and the record always wins if the two disagree. For (3), there's no record to fall back on, so the retrieved material *is* the answer; if nothing clears the relevance threshold, CALL-E is told plainly to say it doesn't know rather than guess. Either way, retrieval happens once, before dispatch — CALL-E has no hook to query anything mid-call.
+
+The third intent is the feature, not a fallback: "couldn't solve it, but here's exactly which office, which person, and the full context already attached" is the non-obvious part of this project.
 
 ## How CALL-E is used
 
@@ -73,7 +75,7 @@ The dispatcher follows the documented polling rhythm against a live account (wai
 
 - **Namibia is an International line.** Calls to `+264` numbers are placed from CALL-E's international numbers, which the CALL-E docs describe as primarily for testing. Students will see a foreign number ring rather than a local one. Fix path: request a local NA line from the CALL-E team for production use.
 - **The classifier is intentionally simple.** Keyword matching over three intents costs nothing and is transparent to debug; it would be replaced by a real NLU step for a production deployment with more intents.
-- **Retrieval is TF-IDF, which is paraphrase-blind.** "What are your office hours" retrieves `office-hours.md` at 0.215 (well above the 0.09 threshold); "are you open on saturdays and can I come after 5pm" — same underlying question — scores 0.071 and correctly gets no reference material rather than a weak, possibly-misleading one. That's the right failure mode (say "I don't know" rather than guess), but it means phrasing matters more than it would with embeddings. See `docs/retrieval-spec.md` §2 for why TF-IDF was chosen anyway, and `scripts/tune_threshold.py` to re-tune after any KB change.
+- **The relevance threshold is doing its job, and TF-IDF is the reason it sometimes has to.** "What are your office hours" retrieves `office-hours.md` at 0.215 (well above the 0.09 threshold). "Are you open on saturdays and can I come after 5pm" — the same underlying question, phrased differently — scores 0.071 and gets **no reference material at all**, so the agent is told to say it doesn't know and have the right office follow up, rather than answer off a weak match. On a phone call, where nobody sees a citation and nobody can scroll back, refusing to guess is the correct behavior, not a bug — a confidently wrong answer read aloud is worse than an honest "I'll have someone follow up." The cost of that safety property is real, though: TF-IDF is lexical, so it's paraphrase-blind, and that's what's driving the miss above. Embeddings would close this specific gap (`EmbeddingRetriever` is a documented, not-yet-built swap behind the same `Retriever` protocol — see `docs/retrieval-spec.md` §2 for why TF-IDF was chosen first). Re-tune with `scripts/tune_threshold.py` after any KB change.
 - **Single process, SQLite, in-process polling.** Fine for a hackathon dashboard with a handful of concurrent calls; would need a real task queue (Celery, etc.) and a proper database at any real scale.
 
 ## How this generalises
