@@ -27,7 +27,7 @@ function isToday(createdAt) {
 }
 
 function displayName(item) {
-  return item.student_name || item.student_number || item.phone;
+  return item.student_name || item.caller_name || item.student_number || item.phone;
 }
 
 function BoolValue({ value }) {
@@ -116,7 +116,8 @@ export default function DashboardPage() {
 function CaseDetail({ item }) {
   const result = item.structured_result;
   const name = displayName(item);
-  const breadcrumbName = item.student_name ? item.student_name.split(" ")[0] : item.phone;
+  const breadcrumbSource = item.student_name || item.caller_name;
+  const breadcrumbName = breadcrumbSource ? breadcrumbSource.split(" ")[0] : item.phone;
 
   return (
     <div className="detail-fade">
@@ -135,6 +136,9 @@ function CaseDetail({ item }) {
           <div className="tag-row">
             <span className="tag">Attempt {item.call_attempts} of 3</span>
             <StatusPill status={item.status} />
+            {item.preparer_used === "deterministic" && (
+              <span className="tag">Fallback: keyword + TF-IDF</span>
+            )}
           </div>
           <div className="card-title">{INTENT_LABELS[item.intent] || "Unclassified"}</div>
           <MonoValue className="card-sub">
@@ -161,6 +165,13 @@ function CaseDetail({ item }) {
           <p className="field-label">They asked</p>
           <p className="inset-box__query">{item.original_query}</p>
         </div>
+
+        {item.reasoning && (
+          <div className="inset-box">
+            <p className="field-label">Reasoning</p>
+            <p className="inset-box__query">{item.reasoning}</p>
+          </div>
+        )}
 
         {result && (
           <div className="result-grid">

@@ -4,6 +4,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
+from dotenv import load_dotenv
+
+# Must run before `from . import dispatcher` - dispatcher.py builds its
+# module-level CalleClient() at import time, reading CALLE_API_KEY from
+# os.environ once. Loading .env any later would silently leave that client
+# on the mock transport for the process's whole lifetime.
+load_dotenv()
+
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -12,7 +20,6 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from . import dispatcher
-from .classifier import classify
 from .directory import JSONDirectory
 from .models import (
     Case,
@@ -52,6 +59,7 @@ def get_session():
 class IntakeRequest(BaseModel):
     phone: str
     query: str
+    caller_name: str
     student_number: Optional[str] = None
     tenant_id: str = "nust"
 
@@ -61,11 +69,16 @@ class CaseOut(BaseModel):
     tenant_id: str
     student_number: Optional[str]
     student_name: Optional[str]
+    caller_name: Optional[str]
     phone: str
     original_query: str
     created_at: datetime
     intent: Optional[str]
     category: Optional[str]
+    reasoning: Optional[str]
+    plan_confidence: Optional[str]
+    preparer_used: Optional[str]
+    should_call: Optional[bool]
     status: str
     call_attempts: int
     call_status: Optional[str]
@@ -86,11 +99,16 @@ class CaseOut(BaseModel):
             tenant_id=case.tenant_id,
             student_number=case.student_number,
             student_name=student.name if student else None,
+            caller_name=case.caller_name,
             phone=case.phone,
             original_query=case.original_query,
             created_at=case.created_at,
             intent=case.intent,
             category=case.category,
+            reasoning=case.reasoning,
+            plan_confidence=case.plan_confidence,
+            preparer_used=case.preparer_used,
+            should_call=case.should_call,
             status=case.status,
             call_attempts=case.call_attempts,
             call_status=case.call_status,
@@ -117,6 +135,8 @@ def create_case(
         )
     if not payload.query.strip():
         raise HTTPException(400, "Question cannot be empty.")
+    if not payload.caller_name.strip():
+        raise HTTPException(400, "Please tell us your name.")
 
     student = directory.lookup(payload.student_number) if payload.student_number else None
     if payload.student_number and student is None:
@@ -124,17 +144,13 @@ def create_case(
             404, "We couldn't find that student number. Leave it blank if you're not sure."
         )
 
-    classification = classify(payload.query)
-
     case = Case(
         tenant_id=payload.tenant_id,
         student_number=payload.student_number,
+        caller_name=payload.caller_name.strip(),
         phone=payload.phone,
         original_query=payload.query.strip(),
-        intent=classification.intent,
-        intent_confidence=classification.confidence,
-        category=classification.category,
-        status="classified",
+        status="received",
     )
     session.add(case)
     session.commit()

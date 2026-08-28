@@ -12,7 +12,7 @@ from .models import (
     set_structured_result,
     set_transcript,
 )
-from .retrieval import build_briefing, build_supplementary_briefing, get_retriever
+from .prepare import CallPlan, prepare_call
 from .router import route_case
 from .schemas import PROOF_OF_REG, SUBJECT_CANCELLATION, TRIAGE
 from .tenants import load_tenant
@@ -43,40 +43,45 @@ def _schema_for(intent: str) -> dict:
     return SCHEMAS.get(intent, TRIAGE)
 
 
-def retrieve_briefing_for_case(case: Case, student, tenant: dict) -> str:
-    """Runs retrieval for every intent and records provenance on the case as
-    a side effect, so a grounded answer is provably grounded on the
-    dashboard. Retrieval happens once per dispatch attempt, before the call
-    — CALL-E has no hook to query anything mid-call.
-
-    Record-backed intents (proof_of_registration, subject_cancellation with
-    a student on file) get the *supplementary* framing: their record is the
-    answer, this is background for anything it doesn't cover (e.g. they also
-    ask where the Cashier's Office is). A miss there is normal, not a
-    coverage failure, so no_kb_coverage is left alone rather than set True.
-    Everything else gets the primary framing, where the reference material
-    IS the answer and a miss means "tell them you don't know."
+def _apply_plan(case: Case, plan: CallPlan) -> None:
+    """Records prepare_call()'s decision on the case as a side effect, so
+    the reasoning behind a call - or a route without one - is visible on
+    the dashboard rather than acted on invisibly. Runs once per dispatch
+    attempt, before the call - CALL-E has no hook to query anything
+    mid-call, so everything has to be decided up front.
     """
-    retriever = get_retriever(case.tenant_id)
-    record_backed = case.intent in ("proof_of_registration", "subject_cancellation") and student
+    case.intent = plan.intent
+    case.category = plan.category
+    case.reasoning = plan.reasoning
+    case.plan_confidence = plan.confidence
+    case.preparer_used = plan.preparer_used
+    case.should_call = plan.should_call
+    if plan.sources_used:
+        set_retrieved_sources(case, plan.sources_used)
+    case.no_kb_coverage = not plan.sources_used and plan.intent == "other"
 
-    if record_backed:
-        briefing, sources, _ = build_supplementary_briefing(
-            case.original_query, retriever, tenant
-        )
-        if sources:
-            set_retrieved_sources(case, sources)
-        return briefing
 
-    briefing, sources, no_coverage = build_briefing(case.original_query, retriever, tenant)
-    set_retrieved_sources(case, sources)
-    case.no_kb_coverage = no_coverage
-    return briefing
+def _route_without_calling(case: Case, tenant: dict, plan: CallPlan) -> None:
+    """should_call=False means prepare_call() judged this needs a human who
+    can see the account directly - route it with the reasoning as the
+    escalation reason instead of spending a call on a question nothing can
+    resolve over the phone.
+    """
+    offices = tenant["offices"]
+    office = offices.get(plan.route_to) or offices["registrar"]
+    case.routed_office = office["name"]
+    case.routed_contact = f"{office['contact']} · {office['email']}"
+    case.routed_reason = plan.reasoning
+    case.status = "routed"
 
 
 def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
     minutes = max(1, int((datetime.utcnow() - case.created_at).total_seconds() // 60))
-    name = student.name if student else "the caller"
+    # The student record's name is verified by the student_number lookup;
+    # caller_name is just what they typed into the form. Use the record's
+    # name once it's confirmed, and the self-reported one only to greet
+    # them beforehand - never as a substitute for the confirmation step.
+    name = student.name if student else (case.caller_name or "the caller")
 
     lines = [
         tenant["agent_intro"],
@@ -92,8 +97,9 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
         )
     else:
         lines.append(
-            "This caller has not provided a student number. Do not assume they are a "
-            "currently registered student, and do not guess at their record."
+            f"This caller gave their name as {name} but has not provided a student "
+            "number. Do not assume they are a currently registered student, and do "
+            "not guess at their record."
         )
 
     if case.intent == "proof_of_registration" and student:
@@ -179,11 +185,21 @@ async def handle_case(case_id: int) -> None:
             case = session.get(Case, case_id)
             tenant = load_tenant(case.tenant_id)
             student = directory.lookup(case.student_number) if case.student_number else None
-            schema = _schema_for(case.intent)
 
-            briefing = retrieve_briefing_for_case(case, student, tenant)
-            task = build_task(case, student, tenant, briefing)
-            case.run_id = client.dispatch(task=task, phone=case.phone, result_schema=schema)
+            plan = prepare_call(case.original_query, student, tenant)
+            _apply_plan(case, plan)
+            case.status = "classified"
+
+            if not plan.should_call:
+                _route_without_calling(case, tenant, plan)
+                session.add(case)
+                session.commit()
+                return
+
+            task = build_task(case, student, tenant, plan.briefing)
+            case.run_id = client.dispatch(
+                task=task, phone=case.phone, result_schema=_schema_for(case.intent)
+            )
             case.call_attempts = 1
             case.status = "calling"
             session.add(case)
@@ -240,8 +256,16 @@ async def handle_case(case_id: int) -> None:
                     student = (
                         directory.lookup(case.student_number) if case.student_number else None
                     )
-                    briefing = retrieve_briefing_for_case(case, student, tenant)
-                    task = build_task(case, student, tenant, briefing)
+                    # Re-runs the reasoning step on every retry, same as the
+                    # retrieval-only version this replaced re-ran retrieval on
+                    # every retry. A retry only happens after a no-answer or
+                    # failed call (max 3 attempts total), so the extra model
+                    # call is rare, not per-poll - and it means a transient
+                    # model failure on attempt 1 can still resolve for real
+                    # on attempt 2 instead of being stuck on the fallback.
+                    plan = prepare_call(case.original_query, student, tenant)
+                    _apply_plan(case, plan)
+                    task = build_task(case, student, tenant, plan.briefing)
                     case.run_id = client.dispatch(
                         task=task, phone=case.phone, result_schema=_schema_for(case.intent)
                     )

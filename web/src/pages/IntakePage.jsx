@@ -7,6 +7,7 @@ import logoMark from "../assets/ringback-mark.png";
 
 export default function IntakePage() {
   const [phoneLocal, setPhoneLocal] = useState("");
+  const [callerName, setCallerName] = useState("");
   const [query, setQuery] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +27,10 @@ export default function IntakePage() {
       setError("Let us know what you need help with.");
       return;
     }
+    if (!callerName.trim()) {
+      setError("Let us know your name.");
+      return;
+    }
 
     const phone = `+264${digits}`;
     setSubmitting(true);
@@ -35,6 +40,7 @@ export default function IntakePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
+          caller_name: callerName.trim(),
           query: query.trim(),
           student_number: studentNumber.trim() || null,
         }),
@@ -77,6 +83,15 @@ export default function IntakePage() {
                   onChange={(e) => setPhoneLocal(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="field">
+              <FieldLabel>Your name</FieldLabel>
+              <input
+                placeholder="Your full name"
+                value={callerName}
+                onChange={(e) => setCallerName(e.target.value)}
+              />
             </div>
 
             <div className="field">

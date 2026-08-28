@@ -12,13 +12,18 @@ class Case(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: str = "nust"
     student_number: Optional[str] = None
+    caller_name: Optional[str] = None
     phone: str
     original_query: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     intent: Optional[str] = None
-    intent_confidence: Optional[float] = None
     category: Optional[str] = None
+
+    reasoning: Optional[str] = None
+    plan_confidence: Optional[str] = None  # low | medium | high
+    preparer_used: Optional[str] = None  # model | deterministic
+    should_call: Optional[bool] = None
 
     status: str = "received"  # received | classified | calling | resolved | routed | failed
     call_attempts: int = 0

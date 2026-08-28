@@ -208,22 +208,22 @@ class _MockTransport:
         },
         "+264814567890": {"delay": 4, "status": "NO ANSWER", "extracted": None},
     }
-    # Deliberately empty: which fields even apply differs per schema (TRIAGE
-    # has no "resolved" concept at all), so the generic fallback below fills
-    # required fields from the schema itself rather than assuming PROOF_OF_REG
-    # shape. A stray "resolved": True here previously leaked into TRIAGE
-    # results and made unresolvable "other" cases wrongly resolve instead of
-    # route.
-    _DEFAULT = {"delay": 5, "status": "COMPLETED", "extracted": {}}
 
     def __init__(self):
         self._runs: dict = {}
 
     def dispatch(self, task: str, phone: str, result_schema: dict) -> str:
+        if phone not in self._SCENARIOS:
+            raise ValueError(
+                f"Mock transport has no scenario for {phone!r} - add it to "
+                "_MockTransport._SCENARIOS in app/calle_client.py. Silently falling "
+                "back to _DEFAULT would make a fake result indistinguishable from a "
+                "real one on the dashboard, for a number nobody actually called."
+            )
         run_id = f"mock_{uuid.uuid4().hex[:10]}"
         self._runs[run_id] = {
             "started": time.monotonic(),
-            "scenario": self._SCENARIOS.get(phone, self._DEFAULT),
+            "scenario": self._SCENARIOS[phone],
             "schema": result_schema,
         }
         return run_id
