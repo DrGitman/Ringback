@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 
 from .base import Hit
@@ -26,6 +26,37 @@ def _mask_contact_details(text: str) -> str:
     return _PHONE_RE.sub(" ", _EMAIL_RE.sub(" ", text))
 
 
+# No stemming means "bachelors" (how a caller says it) and "Bachelor" (how
+# every KB entry writes it) are unrelated tokens - found when "bachelors of
+# economics" scored the actual Bachelor of Economics entry below threshold
+# and matched a chunk that only mentions "Economics" as an elective subject
+# option elsewhere. This is a light, deliberately conservative suffix strip,
+# not a real stemmer (no NLTK - scikit-learn only, per docs/retrieval-spec.md)
+# - it only trims plain plural/possessive "s", not derivational endings.
+_TOKEN_RE = re.compile(r"(?u)\b\w\w+\b")
+
+
+def _light_stem(word: str) -> str:
+    if word.endswith("'s"):
+        word = word[:-2]
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 4 and word.endswith("es") and word[-3] in "sxz":
+        return word[:-2]
+    if len(word) > 4 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
+def _stem_tokenize(text: str) -> List[str]:
+    # Stop words are filtered here, before stemming, rather than left to
+    # TfidfVectorizer's own stop_words= step - that step matches against
+    # unstemmed forms, so stemmed words like "alway" (from "always") would
+    # silently stop being recognised as stop words at all.
+    tokens = _TOKEN_RE.findall(text.lower())
+    return [_light_stem(t) for t in tokens if t not in ENGLISH_STOP_WORDS]
+
+
 class TfidfRetriever:
     def __init__(self) -> None:
         self.vectorizer: Optional[TfidfVectorizer] = None
@@ -44,7 +75,8 @@ class TfidfRetriever:
             sublinear_tf=True,
             strip_accents="unicode",
             lowercase=True,
-            stop_words="english",
+            tokenizer=_stem_tokenize,
+            token_pattern=None,
             min_df=1,
         )
         self.matrix = self.vectorizer.fit_transform(corpus)

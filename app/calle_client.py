@@ -34,12 +34,19 @@ class CallResult:
     poll_after_seconds: Optional[float] = None
 
 
-# Real statuses are uppercase and may contain spaces. PREPARING/SCHEDULED are
-# non-terminal; everything else maps to a terminal outcome. Anything unknown
-# falls through to a lowercased/underscored version of itself rather than
-# crashing, and dispatcher.py treats "unknown terminal status" the same as
-# any other non-completed terminal: retry, then fail after 3 attempts.
-_IN_PROGRESS_STATUSES = {"PREPARING", "SCHEDULED"}
+# Real statuses may be lowercase (POST /v1/calls returns "queued" on
+# creation) or uppercase with spaces (GET polls have returned "PREPARING",
+# "NO ANSWER"); raw_status is uppercased below before comparison either way.
+# QUEUED/PREPARING/SCHEDULED are non-terminal; everything else maps to a
+# terminal outcome. Missing QUEUED here previously caused a real bug: a
+# call still queued (not yet dialing) was misread as an unknown terminal
+# status, so dispatcher.py fired a brand-new real call on top of the one
+# still in flight - "calling again and again" on a single submission.
+# Anything genuinely unknown still falls through to a lowercased/
+# underscored version of itself rather than crashing, and dispatcher.py
+# treats that the same as any other non-completed terminal: retry, then
+# fail after 3 attempts.
+_IN_PROGRESS_STATUSES = {"QUEUED", "PREPARING", "SCHEDULED"}
 _TERMINAL_STATUS_MAP = {
     "COMPLETED": "completed",
     "NO ANSWER": "no_answer",
@@ -200,6 +207,7 @@ class _MockTransport:
             "status": "COMPLETED",
             "extracted": {
                 "identity_confirmed": True,
+                "resolved": False,
                 "category": "accommodation",
                 "query_summary": "Accommodation deposit deducted twice in July; needs finance reconciliation.",
                 "urgency": "deadline_driven",

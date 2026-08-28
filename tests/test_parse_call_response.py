@@ -26,7 +26,7 @@ def test_minimal_no_answer_does_not_raise():
 
 
 def test_in_progress_statuses():
-    for raw in ("PREPARING", "SCHEDULED"):
+    for raw in ("PREPARING", "SCHEDULED", "QUEUED", "queued"):
         result = parse_call_response({"run_id": "call_1", "status": raw})
         assert result.status == "in_progress", raw
 

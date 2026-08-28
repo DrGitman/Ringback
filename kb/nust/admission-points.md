@@ -40,8 +40,8 @@ General minimum: 25 points in five subjects at NSSC Ordinary Level including an 
 
 General minimum: 25 points in five subjects including an E-symbol in English on NSSCO. Mature Age Entry is generally not accepted here unless a programme says otherwise.
 
-- Bachelor of Science in Agriculture — E-symbol in Mathematics and Biology or a related science subject. Mature Age Entry accepted. Offered full-time at the Rietfontein campus only.
-- Bachelor of Science in Horticulture — C-symbol in Biology or a science subject, D-symbol in Mathematics. Mature Age Entry accepted. Offered full-time at the Rietfontein campus only.
+- Bachelor of Science in Agriculture — E-symbol in Mathematics and Biology or a related science subject. Mature Age Entry accepted.
+- Bachelor of Science in Horticulture — C-symbol in Biology or a science subject, D-symbol in Mathematics. Mature Age Entry accepted. (Both this and the Agriculture degree above are offered full-time at the Rietfontein site only.)
 - Bachelor of Natural Resource Management — D-symbol in English and Mathematics, C-symbol in Biology, Geography, or Agriculture. Mature Age Entry accepted.
 - Bachelor of Emergency Medical Care — under the NSSC old curriculum: A-symbol in Mathematics, Biology or Physical Science; under the new curriculum: A-symbol in Mathematics, Biology, Physics or Chemistry. Either way, a 60% score in English and 50% in Mathematics is required if sitting NUST's own entrance test.
 - Bachelor of Medical Laboratory Sciences — old curriculum: 18 points in Biology, Mathematics and Physical Science, no symbol lower than C; new curriculum: 24 points in Biology, Chemistry, Mathematics and Physics, no symbol lower than B.

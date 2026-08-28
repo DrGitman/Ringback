@@ -29,11 +29,12 @@ from .tfidf import INDEX_DIR, TfidfRetriever
 
 logger = logging.getLogger(__name__)
 
-# Tuned against scripts/tune_threshold.py on the nine-file nust KB: known
-# in-scope queries scored 0.106-0.220, known out-of-scope scored 0.000-0.091.
-# 0.095 sits in that gap. Below this, the KB genuinely doesn't cover the
-# question — inject nothing rather than a weak match. Re-run the tuning
-# script and adjust this after any real change to the KB's size or content.
+# Tuned against scripts/tune_threshold.py on the ten-file nust KB, with the
+# tfidf.py tokenizer doing light plural/possessive stemming: known in-scope
+# queries scored 0.115-0.226, known out-of-scope scored 0.000-0.072. 0.095
+# sits in that gap. Below this, the KB genuinely doesn't cover the question
+# — inject nothing rather than a weak match. Re-run the tuning script and
+# adjust this after any real change to the KB's size, content, or tokenizer.
 TFIDF_MIN_SCORE = 0.095
 
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"

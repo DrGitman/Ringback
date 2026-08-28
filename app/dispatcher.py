@@ -148,12 +148,19 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
     else:
         if briefing:
             lines.append(briefing)
+            lines.append(
+                "Before ending the call, confirm out loud whether this answered what "
+                "they needed - e.g. ask 'does that answer your question?' Only report "
+                "resolved as true if they confirm it. If they're unsure, still have "
+                "something outstanding, or the reference didn't actually cover what "
+                "they asked, report resolved as false so the right office follows up."
+            )
         else:
             lines.append(
                 "This question does not match a resolvable process, and no reference "
                 "material covers it either. Listen carefully, ask clarifying questions, "
                 "and let them know you'll have the right office follow up with exactly "
-                "what they asked. Do not guess at an answer."
+                "what they asked. Do not guess at an answer. Report resolved as false."
             )
 
     lines.append(
