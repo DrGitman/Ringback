@@ -196,6 +196,21 @@ async def handle_case(case_id: int) -> None:
                 session.commit()
                 return
 
+            # Commit the plan before attempting dispatch. If dispatch below
+            # raises, this session would otherwise roll back with it - and
+            # prepare_call()'s reasoning, already done, would disappear from
+            # a case left showing "failed" with nothing to explain why.
+            session.add(case)
+            session.commit()
+    except Exception as exc:
+        _mark_errored(case_id, str(exc))
+        return
+
+    try:
+        with Session(engine) as session:
+            case = session.get(Case, case_id)
+            tenant = load_tenant(case.tenant_id)
+            student = directory.lookup(case.student_number) if case.student_number else None
             task = build_task(case, student, tenant, plan.briefing)
             case.run_id = client.dispatch(
                 task=task, phone=case.phone, result_schema=_schema_for(case.intent)
@@ -265,6 +280,11 @@ async def handle_case(case_id: int) -> None:
                     # on attempt 2 instead of being stuck on the fallback.
                     plan = prepare_call(case.original_query, student, tenant)
                     _apply_plan(case, plan)
+                    # Same as the first attempt: commit the plan before
+                    # dispatch, so a dispatch failure doesn't roll back the
+                    # reasoning behind it along with the exception.
+                    session.add(case)
+                    session.commit()
                     task = build_task(case, student, tenant, plan.briefing)
                     case.run_id = client.dispatch(
                         task=task, phone=case.phone, result_schema=_schema_for(case.intent)

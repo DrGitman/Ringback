@@ -201,7 +201,7 @@ class _MockTransport:
             "extracted": {
                 "identity_confirmed": True,
                 "category": "accommodation",
-                "summary": "Accommodation deposit deducted twice in July; needs finance reconciliation.",
+                "query_summary": "Accommodation deposit deducted twice in July; needs finance reconciliation.",
                 "urgency": "deadline_driven",
                 "student_callback_preference": "Same number, afternoons",
             },

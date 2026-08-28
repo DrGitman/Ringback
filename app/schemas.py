@@ -29,7 +29,12 @@ SUBJECT_CANCELLATION = {
 
 TRIAGE = {
     "type": "object",
-    "required": ["category", "summary"],
+    # "summary" is a reserved field name in CALL-E's recipient_result_schema -
+    # it collides with the envelope's own result.summary (the system-generated
+    # call summary CalleClient reads separately, see calle_client.py's
+    # parse_call_response). Real API rejects the whole request with 400
+    # recipient_result_schema_invalid if it's used here.
+    "required": ["category", "query_summary"],
     "properties": {
         "identity_confirmed": {"type": "boolean"},
         "category": {
@@ -44,7 +49,7 @@ TRIAGE = {
                 "unclear",
             ],
         },
-        "summary": {"type": "string"},
+        "query_summary": {"type": "string"},
         "urgency": {"type": "string", "enum": ["routine", "deadline_driven", "urgent"]},
         "student_callback_preference": {"type": "string"},
     },
