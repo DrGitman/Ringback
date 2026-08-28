@@ -48,13 +48,32 @@ def _light_stem(word: str) -> str:
     return word
 
 
+# A single recurring pattern kept breaking retrieval, in three different
+# files, at three different sizes, sometimes even after email/phone
+# masking: a chunk that's structurally repetitive - a directory listing,
+# a repeated page header, a satellite-campus paragraph mentioning the same
+# place name three times - packs enough raw repetition into one chunk to
+# outscore genuinely relevant chunks, because sublinear_tf still rewards
+# going from 1 occurrence to 4+. Capping how many times any one token can
+# count per chunk is a general fix for the pattern itself, rather than
+# excluding one more file every time a new instance of it turns up.
+_MAX_TOKEN_REPEATS_PER_CHUNK = 3
+
+
 def _stem_tokenize(text: str) -> List[str]:
     # Stop words are filtered here, before stemming, rather than left to
     # TfidfVectorizer's own stop_words= step - that step matches against
     # unstemmed forms, so stemmed words like "alway" (from "always") would
     # silently stop being recognised as stop words at all.
     tokens = _TOKEN_RE.findall(text.lower())
-    return [_light_stem(t) for t in tokens if t not in ENGLISH_STOP_WORDS]
+    stemmed = [_light_stem(t) for t in tokens if t not in ENGLISH_STOP_WORDS]
+    counts: dict = {}
+    capped = []
+    for tok in stemmed:
+        counts[tok] = counts.get(tok, 0) + 1
+        if counts[tok] <= _MAX_TOKEN_REPEATS_PER_CHUNK:
+            capped.append(tok)
+    return capped
 
 
 class TfidfRetriever:

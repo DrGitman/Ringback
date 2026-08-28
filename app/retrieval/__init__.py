@@ -24,20 +24,77 @@ from pathlib import Path
 from typing import List, Tuple
 
 from .base import Hit, Retriever
-from .chunker import Chunk, chunk_file
+from .chunker import Chunk, chunk_file, chunk_pdf
 from .tfidf import INDEX_DIR, TfidfRetriever
 
 logger = logging.getLogger(__name__)
 
-# Tuned against scripts/tune_threshold.py on the ten-file nust KB, with the
-# tfidf.py tokenizer doing light plural/possessive stemming: known in-scope
-# queries scored 0.115-0.226, known out-of-scope scored 0.000-0.072. 0.095
-# sits in that gap. Below this, the KB genuinely doesn't cover the question
-# — inject nothing rather than a weak match. Re-run the tuning script and
-# adjust this after any real change to the KB's size, content, or tokenizer.
+# Tuned against scripts/tune_threshold.py on the eleven-file nust KB (ten
+# curated .md plus one auto-ingested 1-page PDF), with the tfidf.py
+# tokenizer doing light stemming and per-chunk token-frequency capping:
+# known in-scope queries scored 0.123-0.210, known out-of-scope scored
+# 0.000-0.075. 0.095 sits in that gap. Below this, the KB genuinely doesn't
+# cover the question — inject nothing rather than a weak match. Re-run the
+# tuning script and adjust this after any real change to the KB's size,
+# content, or tokenizer - and treat it as a real check, not a formality:
+# see _LOW_RELEVANCE_PDF_STEMS below for what happened when PDF ingestion
+# was added without re-verifying against it.
 TFIDF_MIN_SCORE = 0.095
 
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"
+
+# These PDFs are already hand-curated into cleaner, focused .md files
+# (faculty-officers.md; academic-calendar-2025.md + public-holidays-2025.md)
+# with none of the repeated page-header boilerplate raw PDF text carries.
+# Auto-ingesting them too would duplicate that content at lower quality and
+# dilute retrieval, so they're skipped by stem. Every other PDF dropped
+# into a tenant's kb folder - including partial overlaps like the 2026
+# prospective-students guide, most of which isn't curated anywhere - is
+# ingested automatically.
+_SUPERSEDED_PDF_STEMS = {
+    "Faculty_Officers_Info",
+    "2025-INSTITUTIONAL-CALENDAR-08JULY2025",
+    "2025 INSTITUTIONAL CALENDAR APPROVED BY SENATE 13 NOV 2024",
+    # Its admission-points section is already in admission-points.md, and its
+    # satellite-campus pages (Eenhana/Lüderitz/Rietfontein, each repeating
+    # "Campus" the same way the original faculty-officers.md bug did) measurably
+    # broke an out-of-scope query on ingestion - already-curated content plus a
+    # confirmed-harmful remainder, not a case worth keeping in raw form.
+    "2026-Final-Guide-to-Prospective-Students_1",
+}
+
+# Measured, not assumed: these four faculty prospectuses alone produced
+# 1003 of 1313 total chunks (module-by-module curriculum listings, dozens
+# of pages each) and demonstrably broke retrieval on ingestion - a known-
+# good query ("when does the semester actually start") dropped below
+# TFIDF_MIN_SCORE, and known out-of-scope queries rose toward it, purely
+# from the corpus-wide term-frequency shift. Detailed course curricula are
+# also a poor match for what a 15-second phone intake actually asks.
+# Excluded until there's a real need (and a better approach - per-course
+# chunking, a higher k, or a separate lower-weighted index) rather than
+# left in a state that's measured to be worse than not ingesting them.
+_LOW_RELEVANCE_PDF_STEMS = {
+    "FCI-Prospectus-2025",
+    "FEBE-Prospectus-2025",
+    "FHNRAS-Prospectus-2025",
+    "HP-GSB-Prospectus-2025",
+    # Measured too: 188 of this tenant's 241 total chunks (78%) and the top
+    # offender pushing "where can i park on campus" back above threshold.
+    # 84 pages of regulatory/policy text repeats "campus" densely across
+    # many unrelated sections (network access, various site locations),
+    # the same class of problem as the four prospectuses above, just at a
+    # smaller scale that still moved the needle.
+    "prospectus-2025-GENERAL-INFORMATION-AND-REGULATIONS",
+    # Even at 26 pages, this one still measurably hurt retrieval - a
+    # regional resource-centre directory page (contact-listing-dense, same
+    # shape as the original faculty-officers.md bug) outscored genuinely
+    # relevant chunks even after email/phone masking and a general
+    # per-chunk token-frequency cap (see _MAX_TOKEN_REPEATS_PER_CHUNK in
+    # tfidf.py). Every PDF in this KB has now independently reproduced
+    # this pattern regardless of size - it's the content shape (directory
+    # listings, repeated headers), not file size, that predicts risk.
+    "Pocket-Guide-For-Flexible-Learning-1stSemester2025",
+}
 
 
 def _load_chunks(tenant_id: str) -> List[Chunk]:
@@ -46,21 +103,26 @@ def _load_chunks(tenant_id: str) -> List[Chunk]:
     if folder.exists():
         for md in sorted(folder.glob("*.md")):
             chunks.extend(chunk_file(md, tenant_id))
+        for pdf in sorted(folder.rglob("*.pdf")):
+            if pdf.stem in _SUPERSEDED_PDF_STEMS or pdf.stem in _LOW_RELEVANCE_PDF_STEMS:
+                continue
+            chunks.extend(chunk_pdf(pdf, tenant_id))
     return chunks
 
 
 def _index_is_stale(tenant_id: str) -> bool:
-    """True if any kb/<tenant>/*.md file was edited after the index was last
-    built — a stale pickle used to mean new KB content sat on disk,
-    completely unsearchable, with nothing in code review or the app itself
-    hinting that it wasn't wired in.
+    """True if any kb/<tenant>/*.md or */*.pdf file was edited after the
+    index was last built — a stale pickle used to mean new KB content sat
+    on disk, completely unsearchable, with nothing in code review or the
+    app itself hinting that it wasn't wired in.
     """
     index_path = INDEX_DIR / f"{tenant_id}.pkl"
     if not index_path.exists():
         return True
     index_mtime = index_path.stat().st_mtime
-    md_files = list((KB_ROOT / tenant_id).glob("*.md"))
-    return any(md.stat().st_mtime > index_mtime for md in md_files)
+    folder = KB_ROOT / tenant_id
+    source_files = list(folder.glob("*.md")) + list(folder.rglob("*.pdf"))
+    return any(f.stat().st_mtime > index_mtime for f in source_files)
 
 
 @lru_cache
