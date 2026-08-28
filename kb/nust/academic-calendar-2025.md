@@ -8,7 +8,7 @@ These are the confirmed dates from the 2025 institutional calendar, approved by 
 
 ### Semester dates
 
-Semester 1 runs 10 February to 16 May for exam-based courses, or through to 06 June for CASS (continuous-assessment) courses, with a mid-semester break from 31 March to 04 April. The mid-year student recess runs 16 June to 11 July. Semester 2 runs 14 July to 10 October for exam-based courses, or through to 07 November for CASS courses, with a mid-semester break from 08 to 12 September. Academic activities for the year end 12 December.
+Semester 1 classes start 10 February and end 16 May for exam-based courses, or 06 June for CASS (continuous-assessment) courses, with a mid-semester break from 31 March to 04 April. The mid-year student recess runs 16 June to 11 July. Semester 2 classes start 14 July and end 10 October for exam-based courses, or 07 November for CASS courses, with a mid-semester break from 08 to 12 September. Academic activities for the year end 12 December.
 
 ### Examination sessions
 

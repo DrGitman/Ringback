@@ -4,7 +4,7 @@ topic: admission_points
 office: registrar
 ---
 
-NUST admission uses a point system based on final school-leaving results (NSSC, Cambridge, or GCE), converted onto NUST's Admission Point Scale — English is always counted, and Mathematical Literacy is not accepted where a programme specifically requires Mathematics. Every faculty has a general minimum (25, 30, or 37 points in five subjects, depending on the school), and most programmes add a specific subject-grade requirement on top of that. The Registrar's Office or Admissions can calculate a caller's exact score from their actual results — the figures below are what to check a caller's expectations against, not a substitute for that calculation.
+Nust admission uses a point system based on final school-leaving results (NSSC, Cambridge, or GCE), converted onto Nust's Admission Point Scale — English is always counted, and Mathematical Literacy is not accepted where a programme specifically requires Mathematics. Every faculty has a general minimum (25, 30, or 37 points in five subjects, depending on the school), and most programmes add a specific subject-grade requirement on top of that. The Registrar's Office or Admissions can calculate a caller's exact score from their actual results — the figures below are what to check a caller's expectations against, not a substitute for that calculation.
 
 ### Faculty of Computing and Informatics
 
@@ -13,7 +13,7 @@ General minimum: 25 points in five subjects including an E-symbol in English on 
 - Bachelor of Computer Science — D-symbol in Mathematics on NSSCO, or E-symbol on NSSCAS.
 - Bachelor of Computer Science in Cyber Security — C-symbol in Mathematics on NSSCO, or E-symbol on NSSCAS.
 - Bachelor of Informatics — D-symbol in Mathematics on NSSCO, or e-symbol on NSSCAS.
-- Bachelor of Journalism and Media Technology — D-symbol or better in English on NSSCO, plus a pass in a journalism-related test. Mature Age Entry is accepted with a minimum 50% pass rate in NUST's English Proficiency and Mathematics tests.
+- Bachelor of Journalism and Media Technology — D-symbol or better in English on NSSCO, plus a pass in a journalism-related test. Mature Age Entry is accepted with a minimum 50% pass rate in Nust's English Proficiency and Mathematics tests.
 
 ### Faculty of Engineering — School of Engineering
 
@@ -43,10 +43,10 @@ General minimum: 25 points in five subjects including an E-symbol in English on 
 - Bachelor of Science in Agriculture — E-symbol in Mathematics and Biology or a related science subject. Mature Age Entry accepted.
 - Bachelor of Science in Horticulture — C-symbol in Biology or a science subject, D-symbol in Mathematics. Mature Age Entry accepted. (Both this and the Agriculture degree above are offered full-time at the Rietfontein site only.)
 - Bachelor of Natural Resource Management — D-symbol in English and Mathematics, C-symbol in Biology, Geography, or Agriculture. Mature Age Entry accepted.
-- Bachelor of Emergency Medical Care — under the NSSC old curriculum: A-symbol in Mathematics, Biology or Physical Science; under the new curriculum: A-symbol in Mathematics, Biology, Physics or Chemistry. Either way, a 60% score in English and 50% in Mathematics is required if sitting NUST's own entrance test.
+- Bachelor of Emergency Medical Care — under the NSSC old curriculum: A-symbol in Mathematics, Biology or Physical Science; under the new curriculum: A-symbol in Mathematics, Biology, Physics or Chemistry. Either way, a 60% score in English and 50% in Mathematics is required if sitting Nust's own entrance test.
 - Bachelor of Medical Laboratory Sciences — old curriculum: 18 points in Biology, Mathematics and Physical Science, no symbol lower than C; new curriculum: 24 points in Biology, Chemistry, Mathematics and Physics, no symbol lower than B.
 - Bachelor of Environmental Health Science — old curriculum: 15 points in Biology, Mathematics and Physical Science, no symbol lower than C; new curriculum: 20 points in Biology, Mathematics, Physics and Chemistry, no symbol lower than C.
-- Bachelor of Human Nutrition — old curriculum: 15 points in Biology, Mathematics and Physical Science, no symbol lower than C; new curriculum: 20 points in Biology, Mathematics, Physics and Chemistry, no symbol lower than C at Ordinary Level or D at AS Level. Mature Age applicants need 50% in NUST's English and Mathematics tests.
+- Bachelor of Human Nutrition — old curriculum: 15 points in Biology, Mathematics and Physical Science, no symbol lower than C; new curriculum: 20 points in Biology, Mathematics, Physics and Chemistry, no symbol lower than C at Ordinary Level or D at AS Level. Mature Age applicants need 50% in Nust's English and Mathematics tests.
 - Bachelor of Applied Mathematics and Statistics — old curriculum: B-symbol in Mathematics at NSSC Ordinary Level or e-symbol at Advanced Level (a C-symbol under the old syllabus requires sitting an entrance test); new curriculum: B-symbol in Mathematics at Ordinary Level or E-symbol at Advanced Level.
 - Bachelor of Science — old curriculum: 15 points in Mathematics, Biology and Physical Science, no symbol lower than C; new curriculum: 20 points in Mathematics, Biology, Chemistry and Physics, no symbol lower than C at Ordinary Level or D at AS Level.
 

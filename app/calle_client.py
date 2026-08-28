@@ -6,10 +6,24 @@ to switch from the local mock transport to real calls against the CALL-E
 REST API — nothing else in the app needs to change.
 
 parse_call_response() is written against a real get_call_run payload
-captured on 2026-08-26, not against the API docs' shorthand example — the
-two disagree in several places (see git history / feedback-log.md). Only
-`status` is guaranteed present on the raw payload; everything under
-`result` may be entirely absent, so every access below is defensive.
+captured on 2026-08-28 (tests/fixtures/real_call_happy.json), not against
+the API docs' shorthand example - the two disagree in several places (see
+git history / feedback-log.md). Only `status` is guaranteed present on the
+raw payload; everything else may be entirely absent, so every access below
+is defensive.
+
+The real envelope has no top-level "result" wrapper at all - task_completed,
+completion_confidence, evidence, summary, and post_summary sit directly on
+the response, while the schema-shaped data lives at recipients[0].
+structured_result and the transcript at recipients[0].attempts[-1].
+transcript_turns (a list of {speaker, text}, not a flat string). Every
+prior version of this function read result.extracted / result.transcript /
+result.outcome.* instead, which don't exist on the real payload - the
+top-level "result" key is simply absent, so data.get("result") or {}
+silently evaluated to {} on every real call, and structured_result,
+transcript, task_completed, and evidence were empty on every single one.
+This is why cases kept routing even when the agent visibly resolved the
+call: there was never a `resolved` field for the dispatcher to read.
 """
 
 import os
@@ -63,6 +77,13 @@ def _poll_after_seconds(data: dict) -> Optional[float]:
     return None
 
 
+def _format_transcript(turns) -> Optional[str]:
+    if not turns:
+        return None
+    lines = [f"{t.get('speaker', '?')}: {t.get('text', '')}" for t in turns if isinstance(t, dict)]
+    return "\n".join(lines) if lines else None
+
+
 def parse_call_response(data: dict) -> CallResult:
     """Maps a raw call-status payload (get_call_run / GET /v1/calls/{id}) to
     a CallResult. See tests/test_parse_call_response.py for the shape this is
@@ -77,21 +98,30 @@ def parse_call_response(data: dict) -> CallResult:
 
     status = _TERMINAL_STATUS_MAP.get(raw_status, raw_status.lower().replace(" ", "_"))
 
-    result = data.get("result") or {}
-    outcome = result.get("outcome") or {}
+    recipients = data.get("recipients") or []
+    recipient = recipients[0] if recipients else {}
+    structured = recipient.get("structured_result")
+    if not isinstance(structured, dict):
+        # Ringback never sends more than one recipient, but fall back to a
+        # top-level structured_result if it's ever present - some call
+        # shapes (batch, or future API versions) may put it there instead.
+        structured = data.get("structured_result")
 
-    confidence = outcome.get("completion_confidence")
+    attempts = recipient.get("attempts") or []
+    transcript = _format_transcript(attempts[-1].get("transcript_turns")) if attempts else None
+
+    confidence = data.get("completion_confidence")
     confidence_score = confidence.get("score") if isinstance(confidence, dict) else confidence
 
     return CallResult(
         status=status,
-        structured_result=result.get("extracted"),
-        transcript=result.get("transcript"),
+        structured_result=structured,
+        transcript=transcript,
         completion_confidence=confidence_score,
-        task_completed=outcome.get("task_completed"),
-        evidence=outcome.get("evidence"),
-        summary=result.get("summary"),
-        post_summary=result.get("post_summary"),
+        task_completed=data.get("task_completed"),
+        evidence=data.get("evidence"),
+        summary=data.get("summary"),
+        post_summary=data.get("post_summary"),
         poll_after_seconds=poll_after,
     )
 
@@ -258,29 +288,30 @@ class _MockTransport:
         return parse_call_response(
             {
                 "status": "COMPLETED",
-                "result": {
-                    "extracted": extracted,
-                    "outcome": {
-                        "task_completed": True,
-                        "completion_confidence": {"score": 0.87, "label": "high"},
-                        "evidence": ["Simulated locally - no live CALL-E call was placed."],
-                    },
-                    "transcript": _mock_transcript_text(),
-                    "summary": "Simulated call for local development.",
-                    "post_summary": "No live call was placed; this is mock data.",
-                },
+                "task_completed": True,
+                "completion_confidence": {"score": 0.87, "label": "high"},
+                "evidence": ["Simulated locally - no live CALL-E call was placed."],
+                "summary": "Simulated call for local development.",
+                "post_summary": "No live call was placed; this is mock data.",
+                "recipients": [
+                    {
+                        "structured_result": extracted,
+                        "attempts": [{"transcript_turns": _mock_transcript_turns()}],
+                    }
+                ],
             }
         )
 
 
-def _mock_transcript_text() -> str:
-    return (
-        "CALL-E: Hi, I'm calling on behalf of the Registrar's Office. Is now an "
-        "okay time to talk?\n"
-        "STUDENT: Yes, go ahead.\n"
-        "CALL-E: Great - could you confirm your student number for me first?\n"
-        "STUDENT: Sure, one second, let me find it."
-    )
+def _mock_transcript_turns() -> list:
+    # Matches the real envelope shape (tests/fixtures/real_call_happy.json):
+    # recipients[0].attempts[-1].transcript_turns, a list of {speaker, text}.
+    return [
+        {"speaker": "bot", "text": "Hi, I'm calling on behalf of the Registrar's Office. Is now an okay time to talk?"},
+        {"speaker": "user", "text": "Yes, go ahead."},
+        {"speaker": "bot", "text": "Great - could you confirm your student number for me first?"},
+        {"speaker": "user", "text": "Sure, one second, let me find it."},
+    ]
 
 
 class CalleClient:

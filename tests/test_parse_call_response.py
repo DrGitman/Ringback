@@ -2,19 +2,28 @@
 
 Run directly: python tests/test_parse_call_response.py
 
-Confirms the parser matches CALL-E's real output shape (uppercase, spaced
-statuses; result.extracted; result.outcome.{task_completed,
-completion_confidence, evidence}; result.transcript as a plain string) and,
-per today's fix list, that a minimal {run_id, status: "NO ANSWER"} response
-produces a clean failure rather than an exception.
+Confirms the parser matches CALL-E's real output shape, captured directly
+from a completed real call on 2026-08-28 (tests/fixtures/real_call_happy.json):
+no top-level "result" wrapper at all - task_completed, completion_confidence,
+evidence, summary, and post_summary sit directly on the response, the
+schema-shaped data lives at recipients[0].structured_result, and the
+transcript at recipients[0].attempts[-1].transcript_turns (a list of
+{speaker, text}, not a flat string). Every earlier version of this parser
+read result.extracted / result.outcome.* / result.transcript instead, none
+of which exist on a real payload - see calle_client.py's module docstring
+for how that stayed invisible until a dispatcher bug (cases always routing,
+never resolving) traced back to it.
 """
 
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.calle_client import parse_call_response  # noqa: E402
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_minimal_no_answer_does_not_raise():
@@ -40,17 +49,24 @@ def test_completed_with_full_envelope():
     raw = {
         "run_id": "call_1",
         "status": "COMPLETED",
-        "result": {
-            "extracted": {"resolved": True, "identity_confirmed": True},
-            "outcome": {
-                "task_completed": True,
-                "completion_confidence": {"score": 0.91, "label": "high"},
-                "evidence": ["Student confirmed student number."],
-            },
-            "transcript": "CALL-E: Hi...\nSTUDENT: Hello.",
-            "summary": "Call resolved cleanly.",
-            "post_summary": "No follow-up needed.",
-        },
+        "task_completed": True,
+        "completion_confidence": {"score": 0.91, "label": "high"},
+        "evidence": ["Student confirmed student number."],
+        "summary": "Call resolved cleanly.",
+        "post_summary": "No follow-up needed.",
+        "recipients": [
+            {
+                "structured_result": {"resolved": True, "identity_confirmed": True},
+                "attempts": [
+                    {
+                        "transcript_turns": [
+                            {"speaker": "bot", "text": "Hi..."},
+                            {"speaker": "user", "text": "Hello."},
+                        ]
+                    }
+                ],
+            }
+        ],
     }
     result = parse_call_response(raw)
     assert result.status == "completed"
@@ -58,9 +74,21 @@ def test_completed_with_full_envelope():
     assert result.completion_confidence == 0.91
     assert result.task_completed is True
     assert result.evidence == ["Student confirmed student number."]
-    assert result.transcript == "CALL-E: Hi...\nSTUDENT: Hello."
+    assert result.transcript == "bot: Hi...\nuser: Hello."
     assert result.summary == "Call resolved cleanly."
     assert result.post_summary == "No follow-up needed."
+
+
+def test_real_happy_path_fixture_parses_correctly():
+    raw = json.loads((FIXTURES / "real_call_happy.json").read_text(encoding="utf-8"))
+    result = parse_call_response(raw)
+    assert result.status == "completed"
+    assert result.structured_result["resolved"] is True
+    assert result.structured_result["category"] == "academic_records"
+    assert "Semester 1" in result.transcript or "bot:" in result.transcript
+    assert result.task_completed is True
+    assert result.completion_confidence == 0.9
+    assert result.evidence
 
 
 def test_declined_and_failed():
@@ -73,7 +101,7 @@ def test_unknown_status_normalises_instead_of_crashing():
     assert result.status == "canceled_by_caller"
 
 
-def test_completed_with_result_entirely_missing():
+def test_completed_with_everything_missing():
     result = parse_call_response({"run_id": "call_1", "status": "COMPLETED"})
     assert result.status == "completed"
     assert result.structured_result is None
@@ -84,12 +112,29 @@ def test_completed_with_result_entirely_missing():
 
 
 def test_completion_confidence_as_bare_number_still_works():
-    raw = {
-        "status": "COMPLETED",
-        "result": {"outcome": {"completion_confidence": 0.5}},
-    }
+    raw = {"status": "COMPLETED", "completion_confidence": 0.5}
     result = parse_call_response(raw)
     assert result.completion_confidence == 0.5
+
+
+def test_empty_recipients_does_not_raise():
+    result = parse_call_response({"status": "COMPLETED", "recipients": []})
+    assert result.status == "completed"
+    assert result.structured_result is None
+    assert result.transcript is None
+
+
+def test_top_level_structured_result_used_as_fallback():
+    # Some call shapes (batch, or a future API version) may put the result
+    # at the top level instead of under recipients[0] - fall back to it
+    # rather than losing the data.
+    raw = {
+        "status": "COMPLETED",
+        "structured_result": {"resolved": True},
+        "recipients": [],
+    }
+    result = parse_call_response(raw)
+    assert result.structured_result == {"resolved": True}
 
 
 def test_next_step_poll_after_seconds_is_honoured():

@@ -55,7 +55,7 @@ def main() -> None:
     print(f"status:                {result.status}")
     print(f"task_completed:        {result.task_completed}")
     print(f"completion_confidence: {result.completion_confidence}")
-    print(f"transcript turns:      {len(result.transcript or [])}")
+    print(f"transcript lines:      {len((result.transcript or '').splitlines())}")
     print(f"structured_result:     {json.dumps(result.structured_result, indent=2)}")
 
     if result.status != "completed":
