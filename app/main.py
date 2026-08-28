@@ -34,7 +34,7 @@ from .tenants import TENANTS_ROOT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
-directory = JSONDirectory()
+directory = SqlDirectory()
 
 
 @asynccontextmanager
