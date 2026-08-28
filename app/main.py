@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from . import dispatcher
-from .directory import JSONDirectory
+from .directory import SqlDirectory
 from .models import (
     Case,
     engine,

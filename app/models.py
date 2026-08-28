@@ -1,11 +1,23 @@
 import json
+import os
 from datetime import datetime
 from typing import Optional
 
 from sqlmodel import Field, SQLModel, create_engine
 
-DB_URL = "sqlite:///./ringback.db"
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+# One database for everything - case tracking and the student directory
+# (app/models_student.py) share this engine and metadata, so init_db()
+# creates both sets of tables together and a single DATABASE_URL covers
+# deployment. Falls back to a local SQLite file when unset, so nothing
+# about local dev or the test suite requires a real database.
+DB_URL = os.environ.get("DATABASE_URL", "sqlite:///./ringback.db")
+if DB_URL.startswith("postgres://"):
+    DB_URL = DB_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DB_URL.startswith("postgresql://"):
+    DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
+_connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
+engine = create_engine(DB_URL, connect_args=_connect_args)
 
 
 class Case(SQLModel, table=True):
@@ -73,4 +85,6 @@ def set_retrieved_sources(case: Case, value: Optional[list]) -> None:
 
 
 def init_db() -> None:
+    from . import models_student  # noqa: F401  (registers its tables on SQLModel.metadata)
+
     SQLModel.metadata.create_all(engine)
