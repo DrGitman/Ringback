@@ -1,7 +1,8 @@
 import logging
+import os
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv
@@ -14,8 +15,6 @@ load_dotenv()
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -33,22 +32,94 @@ from .retrieval import get_retriever
 from .tenants import TENANTS_ROOT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+logger = logging.getLogger(__name__)
 
 directory = SqlDirectory()
+
+_STARTUP_STATE = {"started_at": None, "index_build_seconds": None}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+
+    index_start = time.monotonic()
     for tenant_file in TENANTS_ROOT.glob("*.json"):
         get_retriever(tenant_file.stem)
+    _STARTUP_STATE["index_build_seconds"] = round(time.monotonic() - index_start, 3)
+    _STARTUP_STATE["started_at"] = datetime.utcnow()
+
+    # Resume polling for any case a prior process left "calling" - a Render
+    # free-tier spin-down or a plain restart must not strand a real call
+    # nobody's listening for the result of anymore.
+    with Session(engine) as session:
+        stuck = session.exec(select(Case).where(Case.status == "calling")).all()
+        stuck_ids = [c.id for c in stuck]
+    for case_id in stuck_ids:
+        import asyncio
+
+        asyncio.create_task(dispatcher.resume_case(case_id))
+    if stuck_ids:
+        logger.info("main: resuming polling for %d case(s) left calling: %s", len(stuck_ids), stuck_ids)
+
     yield
 
 
 app = FastAPI(title="Ringback", lifespan=lifespan)
+
+# ALLOWED_ORIGINS is a comma-separated list - deliberately not "*", since a
+# real deployment has real cookies/headers worth restricting to known
+# origins. max_age caches the preflight so the dashboard's 2-second poll
+# doesn't trigger a fresh OPTIONS request on every single call.
+_allowed_origins = [
+    o.strip()
+    for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if o.strip()
+]
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    max_age=600,
 )
+
+
+@app.get("/health")
+def health():
+    """Bare 200, nothing else - a keep-alive target for an uptime monitor,
+    not a diagnostic. No DB call, no retriever call, no logic, so it can't
+    itself become the thing that's slow or broken.
+    """
+    return {"ok": True}
+
+
+@app.get("/status")
+def status(session: Session = Depends(lambda: Session(engine))):
+    """The actual diagnostic endpoint - checks the things /health
+    deliberately doesn't: DB reachability, retriever load state, chunk
+    count, how long the index took to build at startup.
+    """
+    db_ok = True
+    try:
+        session.exec(select(Case).limit(1)).first()
+    except Exception:
+        db_ok = False
+    finally:
+        session.close()
+
+    tenant_ids = [f.stem for f in TENANTS_ROOT.glob("*.json")]
+    retrievers = {}
+    for tenant_id in tenant_ids:
+        r = get_retriever(tenant_id)
+        retrievers[tenant_id] = len(r.chunks)
+
+    return {
+        "db_reachable": db_ok,
+        "tenants": retrievers,
+        "index_build_seconds": _STARTUP_STATE["index_build_seconds"],
+        "started_at": _STARTUP_STATE["started_at"],
+    }
 
 
 def get_session():
@@ -178,15 +249,3 @@ def get_case(case_id: int, session: Session = Depends(get_session)):
     if not case:
         raise HTTPException(404, "Case not found")
     return CaseOut.from_case(case)
-
-
-WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
-if WEB_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
-
-    @app.get("/{full_path:path}")
-    def serve_frontend(full_path: str):
-        candidate = WEB_DIST / full_path
-        if candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(WEB_DIST / "index.html")
