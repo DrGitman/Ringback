@@ -30,17 +30,18 @@ from .tfidf import INDEX_DIR, TfidfRetriever
 logger = logging.getLogger(__name__)
 
 # Tuned against scripts/tune_threshold.py on the eleven-file nust KB: known
-# in-scope queries scored 0.150-0.208, known out-of-scope scored 0.000-0.121.
-# 0.135 sits in that gap. Below this, the KB genuinely doesn't cover the
-# question — inject nothing rather than a weak match. Re-run the tuning
-# script and adjust this after any real change to the KB's size, content,
-# or tokenizer - and treat it as a real check, not a formality: adding
-# "opens"/"starts" phrasing to the registration-dates section (so "when
-# does registration start" would match) pushed "is the cafeteria open
-# today" from 0.064 to 0.121 purely by sharing the word "open" - a
-# reminder that fixing one paraphrase gap can open another. See
-# _LOW_RELEVANCE_PDF_STEMS below for the same lesson from PDF ingestion.
-TFIDF_MIN_SCORE = 0.135
+# in-scope queries scored 0.137-0.209, known out-of-scope scored 0.000-0.075.
+# 0.13 sits in that gap with a small safety margin on the low end - a prior
+# pass here left only 0.002 of margin on "how much are the fees this
+# semester", which a single future KB edit could tip over. Re-run the
+# tuning script and adjust this after any real change to the KB's size,
+# content, or tokenizer - and treat it as a real check, not a formality:
+# adding "opens"/"starts" phrasing to the registration-dates section (so
+# "when does registration start" would match) pushed "is the cafeteria
+# open today" up purely by sharing the word "open" - fixing one paraphrase
+# gap opened another. See _LOW_RELEVANCE_PDF_STEMS below for the same
+# lesson from PDF ingestion.
+TFIDF_MIN_SCORE = 0.13
 
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"
 

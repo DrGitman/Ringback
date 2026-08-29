@@ -8,7 +8,7 @@ These are the confirmed dates from the 2026 institutional calendar, approved by 
 
 ### Registration dates
 
-Registration for returning (senior) students starts and opens 05 January. Registration for new students starts and opens 22 January, after final selection closes and ends on 27 January. Registration for all students, new and returning, closes and ends 06 February. Late registration starts and opens 09 February (the same day Semester 1 lectures begin and start) and closes and ends 13 February - a late registration fee applies. The official opening of the academic year is 24 February, which is also the last day for course cancellation with 100% credit, course or programme amendments, and course exemption applications.
+Registration for returning (senior) students starts 05 January. Registration for new students starts 22 January, after final selection ends on 27 January. Registration for all students, new and returning, ends 06 February. Late registration starts 09 February (the same day Semester 1 lectures begin) and ends 13 February - a late registration fee applies. The academic year officially begins 24 February, which is also the last day for course cancellation with 100% credit, course or programme amendments, and course exemption applications.
 
 ### Semester dates
 

@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import PillButton from "../components/PillButton";
 import FieldLabel from "../components/FieldLabel";
 import logoMark from "../assets/ringback-mark.png";
+import { createCase } from "../api";
 
 export default function IntakePage() {
   const [phoneLocal, setPhoneLocal] = useState("");
@@ -35,15 +36,11 @@ export default function IntakePage() {
     const phone = `+264${digits}`;
     setSubmitting(true);
     try {
-      const res = await fetch("/api/cases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          caller_name: callerName.trim(),
-          query: query.trim(),
-          student_number: studentNumber.trim() || null,
-        }),
+      const res = await createCase({
+        phone,
+        caller_name: callerName.trim(),
+        query: query.trim(),
+        student_number: studentNumber.trim() || null,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

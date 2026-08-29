@@ -8,9 +8,7 @@ Student accounts are billed once per semester, with the balance due before the s
 
 Payments can be made in three ways: in person at the Cashier's Office in the Admin Building during office hours, by electronic funds transfer using the student number as the reference, or through the student portal's online payment option where available. Cash deposits directly into the university's bank account without the correct reference are difficult to trace and can delay a payment being reflected on a student's account, so the student number as reference is important to mention.
 
-### Banking details for EFT payments
-
-Account name: Namibia University of Science and Technology. Bank: First National Bank. Account number: 55500126319. Branch code: Corporate Branch, 281872. International SWIFT code: FIRNNANX. Always read these back slowly and offer to send them by email as well, since a transposed digit sends a payment to the wrong reference.
+For EFT, the banking details are: account name Namibia University of Science and Technology, bank First National Bank, account number 55500126319, branch code Corporate Branch 281872, international SWIFT code FIRNNANX. Always read these back slowly and offer to send them by email as well, since a transposed digit sends a payment to the wrong reference.
 
 Once a payment is made, it typically reflects on the student's account within 24 hours for EFT and portal payments, and immediately for in-person payments at the Cashier's Office. If a student says they've paid but it isn't reflecting after more than two working days, they may need to send proof of payment to the Fees Office for manual reconciliation — this is common when the reference number was entered incorrectly.
 

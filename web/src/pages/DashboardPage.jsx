@@ -4,6 +4,7 @@ import MonoValue from "../components/MonoValue";
 import Panel from "../components/Panel";
 import StatusPill from "../components/StatusPill";
 import logoMark from "../assets/ringback-mark.png";
+import { listCases } from "../api";
 
 const INTENT_LABELS = {
   proof_of_registration: "Proof of registration",
@@ -46,11 +47,14 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/cases");
-    if (!res.ok) return;
-    const data = await res.json();
-    setCases(data);
-    setSelectedId((current) => current ?? data[0]?.id ?? null);
+    try {
+      const data = await listCases();
+      setCases(data);
+      setSelectedId((current) => current ?? data[0]?.id ?? null);
+    } catch {
+      // Transient poll failure - keep showing the last known state rather
+      // than clearing the queue on one dropped request.
+    }
   }, []);
 
   useEffect(() => {
