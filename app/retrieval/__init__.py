@@ -45,7 +45,7 @@ TFIDF_MIN_SCORE = 0.135
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"
 
 # These PDFs are already hand-curated into cleaner, focused .md files
-# (faculty-officers.md; academic-calendar-2025.md + public-holidays-2025.md)
+# (faculty-officers.md; academic-calendar-2026.md + public-holidays-2026.md)
 # with none of the repeated page-header boilerplate raw PDF text carries.
 # Auto-ingesting them too would duplicate that content at lower quality and
 # dilute retrieval, so they're skipped by stem. Every other PDF dropped
@@ -62,6 +62,10 @@ _SUPERSEDED_PDF_STEMS = {
     # broke an out-of-scope query on ingestion - already-curated content plus a
     # confirmed-harmful remainder, not a case worth keeping in raw form.
     "2026-Final-Guide-to-Prospective-Students_1",
+    # Fully curated into academic-calendar-2026.md + public-holidays-2026.md
+    # once the current date moved into 2026 and the -2025 versions of those
+    # files went stale. Same reasoning as the 2025 calendar PDFs above.
+    "2026-INSTITUTIONAL-CALENDAR",
 }
 
 # Measured, not assumed: these four faculty prospectuses alone produced
