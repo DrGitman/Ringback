@@ -29,7 +29,8 @@ def route_case(case: Case, tenant: dict) -> None:
     office = offices.get(office_key, offices["registrar"])
 
     reason = (
-        result.get("query_summary")
+        result.get("channel_reason")
+        or result.get("query_summary")
         or result.get("student_next_action")
         or "The agent could not resolve this on the call and it needs a person to follow up."
     )

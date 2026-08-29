@@ -85,6 +85,8 @@ class CaseOut(BaseModel):
     structured_result: Optional[dict]
     transcript: Optional[str]
     completion_confidence: Optional[float]
+    channel: Optional[str]
+    channel_reason: Optional[str]
     routed_office: Optional[str]
     routed_contact: Optional[str]
     routed_reason: Optional[str]
@@ -115,6 +117,8 @@ class CaseOut(BaseModel):
             structured_result=get_structured_result(case),
             transcript=get_transcript(case),
             completion_confidence=case.completion_confidence,
+            channel=case.channel,
+            channel_reason=case.channel_reason,
             routed_office=case.routed_office,
             routed_contact=case.routed_contact,
             routed_reason=case.routed_reason,

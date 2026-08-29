@@ -217,6 +217,9 @@ class _MockTransport:
                 "blocker": "fee_balance",
                 "student_next_action": "Pay the outstanding balance at the Cashier's Office or by EFT.",
                 "wants_escalation": True,
+                "channel": "email",
+                "channel_reason": "Proof of registration is issued automatically once the balance "
+                "clears; it will be sent to the email address on file.",
             },
         },
         "+264812345678": {
@@ -230,6 +233,7 @@ class _MockTransport:
                 "student_confirmed_drop": True,
                 "fee_implication_explained": True,
                 "wants_escalation": False,
+                "channel": "phone",
             },
         },
         "+264813456789": {
@@ -242,6 +246,9 @@ class _MockTransport:
                 "query_summary": "Accommodation deposit deducted twice in July; needs finance reconciliation.",
                 "urgency": "deadline_driven",
                 "student_callback_preference": "Same number, afternoons",
+                "channel": "route",
+                "channel_reason": "A duplicate deposit deduction needs Finance to reconcile the "
+                "account directly - not something resolvable on this call.",
             },
         },
         "+264814567890": {"delay": 4, "status": "NO ANSWER", "extracted": None},

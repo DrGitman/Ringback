@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlmodel import Session
 
 from .calle_client import CalleClient
-from .directory import JSONDirectory
+from .directory import SqlDirectory
 from .models import (
     Case,
     engine,
@@ -33,7 +33,7 @@ SCHEMAS = {
 }
 
 client = CalleClient()
-directory = JSONDirectory()
+directory = SqlDirectory()
 
 WAIT_FIRST = POLL_WAIT_FIRST_LIVE if client.is_live else POLL_WAIT_FIRST_MOCK
 POLL_INTERVAL = POLL_INTERVAL_LIVE if client.is_live else POLL_INTERVAL_MOCK
@@ -72,7 +72,45 @@ def _route_without_calling(case: Case, tenant: dict, plan: CallPlan) -> None:
     case.routed_office = office["name"]
     case.routed_contact = f"{office['contact']} · {office['email']}"
     case.routed_reason = plan.reasoning
+    case.channel = "route"
+    case.channel_reason = plan.reasoning
     case.status = "routed"
+
+
+def _disclosure_and_channel_instructions(tenant: dict) -> str:
+    """Shared across every intent, appended once per task. Two separate
+    concerns bundled together because they're both about what must never
+    happen on a call: disclosing something to the wrong person, and
+    concluding something that isn't actually finished. The office
+    directory is built from tenant config rather than hardcoded, since
+    which office is relevant depends on what comes up mid-call - not
+    knowable when the task string is written.
+    """
+    offices = tenant["offices"]
+    directory = "; ".join(
+        f"{o['name']}: {o['email']}, {o['location']}" for o in offices.values()
+    )
+    return (
+        "If the caller is a parent, sponsor, or anyone other than the student, "
+        "disclose nothing about the account and say the student must contact the "
+        "office directly themselves. Never state the student's ID number, "
+        "birthdate, disability status, marital status, or full address out loud - "
+        "you may confirm a detail back to them only if they state it first.\n\n"
+        "Some requests cannot be completed on this call: payment arrangements, "
+        "appeals, deferrals, registration cancellation, name or ID corrections, "
+        "student number recovery, transcript requests, and disability "
+        "accommodations. When one of these comes up, say so, explain why briefly, "
+        "and give the exact next step - the office name, its email, and its "
+        "location. Office directory: "
+        f"{directory}. Set channel to email, in_person, or route accordingly, and "
+        "channel_reason to a short explanation. Only set channel to phone if this "
+        "is genuinely finished by the end of the call.\n\n"
+        "Documents and statements go only to the email address already on file. "
+        "If the caller asks for something to be sent elsewhere, explain that "
+        "changing the address on file is a separate process at the office. You "
+        "may state a balance amount once identity is confirmed, but never read a "
+        "full statement line by line - offer to email it instead."
+    )
 
 
 def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
@@ -163,6 +201,8 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
                 "what they asked. Do not guess at an answer. Report resolved as false."
             )
 
+    lines.append(_disclosure_and_channel_instructions(tenant))
+
     lines.append(
         f"{tenant['tone_instruction']} Do not discuss any other student's information. "
         f"If they ask about anything you don't know, say you'll have the right office "
@@ -231,13 +271,32 @@ async def handle_case(case_id: int) -> None:
         return
 
     await asyncio.sleep(WAIT_FIRST)
+    await _poll_case(case_id)
 
+
+async def resume_case(case_id: int) -> None:
+    """Resumes polling a case that was already "calling" with a run_id when
+    the process last stopped - a Render free-tier spin-down or a plain
+    restart must not stop the app from ever hearing back about a call that
+    got placed for real. Called once per such case at startup (see
+    main.py's lifespan). Polls immediately rather than sleeping WAIT_FIRST
+    first, since the call has been in flight for however long the process
+    was down, not freshly dispatched.
+    """
+    await _poll_case(case_id)
+
+
+async def _poll_case(case_id: int) -> None:
     while True:
         next_sleep = POLL_INTERVAL
         try:
             with Session(engine) as session:
                 case = session.get(Case, case_id)
                 if case is None or case.status in ("resolved", "routed", "failed"):
+                    return
+                if not case.run_id:
+                    # Nothing to poll - shouldn't happen for a "calling" case,
+                    # but bail cleanly rather than crashing the loop on None.
                     return
 
                 result = client.get_result(case.run_id)
@@ -256,9 +315,11 @@ async def handle_case(case_id: int) -> None:
                     set_transcript(case, result.transcript)
                     case.completion_confidence = result.completion_confidence
                     case.call_status = "completed"
+                    case.channel = structured.get("channel")
+                    case.channel_reason = structured.get("channel_reason")
 
                     tenant = load_tenant(case.tenant_id)
-                    if structured.get("resolved") is True:
+                    if structured.get("resolved") is True and case.channel == "phone":
                         case.status = "resolved"
                     else:
                         route_case(case, tenant)

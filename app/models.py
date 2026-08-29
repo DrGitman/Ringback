@@ -46,6 +46,9 @@ class Case(SQLModel, table=True):
     transcript_json: Optional[str] = None
     completion_confidence: Optional[float] = None
 
+    channel: Optional[str] = None  # phone | email | in_person | route
+    channel_reason: Optional[str] = None
+
     routed_office: Optional[str] = None
     routed_contact: Optional[str] = None
     routed_reason: Optional[str] = None

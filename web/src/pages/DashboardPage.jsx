@@ -11,6 +11,13 @@ const INTENT_LABELS = {
   other: "General query",
 };
 
+const CHANNEL_LABELS = {
+  phone: "Resolved by phone",
+  email: "Sent by email",
+  in_person: "Needs in person",
+  route: "Routed to a person",
+};
+
 function elapsed(createdAt) {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(`${createdAt}Z`)) / 60000));
   return `${minutes}m`;
@@ -152,6 +159,7 @@ function CaseDetail({ item }) {
             <span className="tag">
               {item.routed_office ? "Routed" : item.status === "resolved" ? "Resolved" : "Pending"}
             </span>
+            {item.channel && <span className="tag">{CHANNEL_LABELS[item.channel] || item.channel}</span>}
           </div>
           <div className="card-title">
             {item.routed_office || (item.status === "resolved" ? "Resolved on the call" : "Awaiting outcome")}
