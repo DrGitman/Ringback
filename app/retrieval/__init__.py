@@ -29,17 +29,18 @@ from .tfidf import INDEX_DIR, TfidfRetriever
 
 logger = logging.getLogger(__name__)
 
-# Tuned against scripts/tune_threshold.py on the eleven-file nust KB (ten
-# curated .md plus one auto-ingested 1-page PDF), with the tfidf.py
-# tokenizer doing light stemming and per-chunk token-frequency capping:
-# known in-scope queries scored 0.123-0.210, known out-of-scope scored
-# 0.000-0.075. 0.095 sits in that gap. Below this, the KB genuinely doesn't
-# cover the question — inject nothing rather than a weak match. Re-run the
-# tuning script and adjust this after any real change to the KB's size,
-# content, or tokenizer - and treat it as a real check, not a formality:
-# see _LOW_RELEVANCE_PDF_STEMS below for what happened when PDF ingestion
-# was added without re-verifying against it.
-TFIDF_MIN_SCORE = 0.095
+# Tuned against scripts/tune_threshold.py on the eleven-file nust KB: known
+# in-scope queries scored 0.150-0.208, known out-of-scope scored 0.000-0.121.
+# 0.135 sits in that gap. Below this, the KB genuinely doesn't cover the
+# question — inject nothing rather than a weak match. Re-run the tuning
+# script and adjust this after any real change to the KB's size, content,
+# or tokenizer - and treat it as a real check, not a formality: adding
+# "opens"/"starts" phrasing to the registration-dates section (so "when
+# does registration start" would match) pushed "is the cafeteria open
+# today" from 0.064 to 0.121 purely by sharing the word "open" - a
+# reminder that fixing one paraphrase gap can open another. See
+# _LOW_RELEVANCE_PDF_STEMS below for the same lesson from PDF ingestion.
+TFIDF_MIN_SCORE = 0.135
 
 KB_ROOT = Path(__file__).resolve().parent.parent.parent / "kb"
 

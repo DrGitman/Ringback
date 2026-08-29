@@ -1,0 +1,27 @@
+OK    0.177  What are the admission requirements for Bachelor of Economics?  ->  Admission points and subject requirements › Faculty of Commerce, Human Sciences and Education
+OK    0.309  How many points do I need for Bachelor of Computer Science?  ->  Admission points and subject requirements › Faculty of Computing and Informatics
+OK    0.151  Which subjects do I need at NSSCO level for engineering?  ->  Admission points and subject requirements › Faculty of Engineering — School of the Built Environment
+OK    0.155  Do I qualify with a D symbol in mathematics?  ->  Admission points and subject requirements › Faculty of Commerce, Human Sciences and Education
+MISS  0.125  How do I check my application status?  ->  Admission requirements
+OK    0.165  What payment methods do you accept?  ->  Fees and payment
+MISS  0.000  What are the banking details?  ->  none
+OK    0.192  What does the quote total include?  ->  Admission points and subject requirements › Faculty of Commerce, Human Sciences and Education
+MISS  0.095  When does registration open and close?  ->  Academic calendar
+MISS  0.107  Can I register late, and is there a penalty?  ->  Subject cancellation
+MISS  0.069  Do I have to pay before I can register?  ->  Notice International Students 2025 Study Permit › page 1
+OK    0.154  When is the last day to add or drop a subject?  ->  Subject cancellation
+OK    0.200  What does it cost to drop a subject late?  ->  Subject cancellation
+OK    0.150  When does semester one start?  ->  Academic calendar — 2025 key dates › Semester dates
+OK    0.150  When does semester two start?  ->  Academic calendar — 2025 key dates › Semester dates
+OK    0.249  When are the mid-semester breaks?  ->  Academic calendar — 2025 key dates › Semester dates
+MISS  0.121  When do lectures end?  ->  2026 INSTITUTIONAL CALENDAR › page 20
+MISS  0.122  When are exams?  ->  Academic calendar — 2025 key dates › Examination sessions
+OK    0.165  When are results released?  ->  Academic calendar
+OK    0.258  When is graduation?  ->  Academic calendar — 2025 key dates › Graduation ceremonies
+MISS  0.119  Is the university open on Heroes Day?  ->  2026 INSTITUTIONAL CALENDAR › page 18
+OK    0.177  Where is the Cashier Office?  ->  Fees and payment
+MISS  0.125  Where is the Admin Building?  ->  Proof of registration
+OK    0.225  Who is the faculty officer for computing and informatics?  ->  Faculty officers
+OK    0.213  What is the email for the fees office?  ->  Fees and payment
+OK    0.135  What are the office hours?  ->  Office hours
+MISS  0.110  Who do I speak to about accommodation?  ->  Office hours
