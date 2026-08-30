@@ -80,7 +80,7 @@ def _students():
         Registration(
             student_number="220100001", qualification="Bachelor of Computer Science", registration_year=2025,
             academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 1",
-            registration_date=date(2025, 2, 3), faculty=FACULTIES[0], department="School of Computing",
+            registration_date=date(2026, 2, 3), faculty=FACULTIES[0], department="School of Computing",
             has_bursary=False,
         )
     )
@@ -88,11 +88,11 @@ def _students():
         SubjectEnrolment(
             student_number="220100001", subject_code="CSC612S", description="Software Engineering",
             academic_block="Semester 1", class_group="A", attendance="Good",
-            drop_deadline=date(2025, 9, 5), att_proj=78, exam_granted=True, exam_month="November",
+            drop_deadline=date(2026, 9, 5), att_proj=78, exam_granted=True, exam_month="November",
             final_mark=74, result="Pass",
         )
     )
-    age_analyses.append(AgeAnalysis(student_number="220100001", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100001", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 2. Registered but blocked by an outstanding balance (proof-of-reg case).
     add_student(
@@ -111,7 +111,7 @@ def _students():
         Registration(
             student_number="220100002", qualification="Bachelor of Computer Science", registration_year=2025,
             academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-            registration_date=date(2025, 7, 10), faculty=FACULTIES[0], department="School of Computing",
+            registration_date=date(2026, 7, 10), faculty=FACULTIES[0], department="School of Computing",
         )
     )
     subjects.append(
@@ -121,12 +121,12 @@ def _students():
         )
     )
     fee_lines.append(
-        FeeLine(student_number="220100002", date=date(2025, 7, 15), reference="TUITION2025S2",
+        FeeLine(student_number="220100002", date=date(2026, 7, 15), reference="TUITION2025S2",
                 description="Semester 2 tuition fee", debit=2340.00, balance=2340.00)
     )
     age_analyses.append(
         AgeAnalysis(student_number="220100002", days_60=1200.0, days_30=1140.0, current=0.0,
-                    balance=2340.00, date_of_balance=date(2025, 8, 1))
+                    balance=2340.00, date_of_balance=date(2026, 8, 1))
     )
 
     # 3. One subject past its drop deadline, another still inside it.
@@ -145,18 +145,18 @@ def _students():
         Registration(
             student_number="220100003", qualification="Bachelor of Science", registration_year=2025,
             academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-            registration_date=date(2025, 7, 8), faculty=FACULTIES[2], department="School of Natural and Applied Sciences",
+            registration_date=date(2026, 7, 8), faculty=FACULTIES[2], department="School of Natural and Applied Sciences",
         )
     )
     subjects.append(
         SubjectEnrolment(student_number="220100003", subject_code="MAT621S", description="Numerical Methods",
-                          academic_block="Semester 2", drop_deadline=date(2025, 8, 15))  # already past
+                          academic_block="Semester 2", drop_deadline=date(2026, 8, 15))  # already past
     )
     subjects.append(
         SubjectEnrolment(student_number="220100003", subject_code="PHY611S", description="Applied Physics",
                           academic_block="Semester 2", drop_deadline=date(2026, 9, 12))  # still open
     )
-    age_analyses.append(AgeAnalysis(student_number="220100003", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100003", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 4. Results withheld due to an outstanding balance.
     add_student(
@@ -174,7 +174,7 @@ def _students():
     registrations.append(
         Registration(student_number="220100004", qualification="Bachelor of Accounting", registration_year=2025,
                      academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-                     registration_date=date(2025, 7, 5), faculty=FACULTIES[3],
+                     registration_date=date(2026, 7, 5), faculty=FACULTIES[3],
                      department="Department of Economics, Accounting and Finance")
     )
     subjects.append(
@@ -183,12 +183,12 @@ def _students():
                           withheld_reasons="Outstanding fee balance")
     )
     fee_lines.append(
-        FeeLine(student_number="220100004", date=date(2025, 2, 1), reference="TUITION2025S1",
+        FeeLine(student_number="220100004", date=date(2026, 2, 1), reference="TUITION2025S1",
                 description="Semester 1 tuition fee", debit=4100.00, balance=4100.00)
     )
     age_analyses.append(
         AgeAnalysis(student_number="220100004", days_160=4100.0, balance=4100.00,
-                    date_of_balance=date(2025, 8, 1))
+                    date_of_balance=date(2026, 8, 1))
     )
 
     # 5. Bursary awarded with a large unallocated portion.
@@ -206,14 +206,14 @@ def _students():
     registrations.append(
         Registration(student_number="220100005", qualification="Bachelor of Engineering in Civil Engineering",
                      registration_year=2025, academic_block="Full Year", offering_type="Full-time",
-                     period_of_study="Semester 2", registration_date=date(2025, 7, 9), faculty=FACULTIES[1],
+                     period_of_study="Semester 2", registration_date=date(2026, 7, 9), faculty=FACULTIES[1],
                      department="Department of Civil, Mining and Process Engineering", has_bursary=True)
     )
     bursaries.append(
         Bursary(student_number="220100005", year=2025, bursary_code="NSFAS-2025", description="NSFAS Bursary",
                 is_nsfas=True, awarded=45000.00, allocated=18000.00, unallocated=27000.00)
     )
-    age_analyses.append(AgeAnalysis(student_number="220100005", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100005", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 6. Exam entry denied on low attendance/project mark.
     add_student(
@@ -231,7 +231,7 @@ def _students():
     registrations.append(
         Registration(student_number="220100006", qualification="Bachelor of Human Nutrition", registration_year=2025,
                      academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-                     registration_date=date(2025, 7, 11), faculty=FACULTIES[2],
+                     registration_date=date(2026, 7, 11), faculty=FACULTIES[2],
                      department="School of Health Sciences")
     )
     subjects.append(
@@ -239,7 +239,7 @@ def _students():
                           academic_block="Semester 2", attendance="Below 60% required", att_proj=42,
                           exam_granted=False, exam_month="November")
     )
-    age_analyses.append(AgeAnalysis(student_number="220100006", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100006", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 7. Application cancelled with a stated reason.
     add_student(
@@ -256,11 +256,11 @@ def _students():
     applications.append(
         Application(student_number="220100007", academic_year=2025, qualification="Bachelor of Architecture",
                     description="Bachelor of Architecture", academic_preference=1, wrs_score=27,
-                    admission_status="cancelled", cancel_date=date(2025, 1, 20),
+                    admission_status="cancelled", cancel_date=date(2026, 1, 20),
                     cancel_reason="Did not meet the minimum points requirement for the programme",
                     faculty=FACULTIES[1], department="Department of Architecture, Planning and Construction")
     )
-    age_analyses.append(AgeAnalysis(student_number="220100007", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100007", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 8. Credit balance (institution owes them).
     add_student(
@@ -277,15 +277,15 @@ def _students():
     registrations.append(
         Registration(student_number="220100008", qualification="Bachelor of Marketing", registration_year=2025,
                      academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-                     registration_date=date(2025, 7, 7), faculty=FACULTIES[3],
+                     registration_date=date(2026, 7, 7), faculty=FACULTIES[3],
                      department="Department of Marketing, Logistics and Sport Management")
     )
     fee_lines.append(
-        FeeLine(student_number="220100008", date=date(2025, 7, 20), reference="REFUND-SUBJDROP",
+        FeeLine(student_number="220100008", date=date(2026, 7, 20), reference="REFUND-SUBJDROP",
                 description="Refund for dropped subject", credit=850.00, balance=-850.00)
     )
     age_analyses.append(
-        AgeAnalysis(student_number="220100008", credit=850.00, balance=-850.00, date_of_balance=date(2025, 8, 1))
+        AgeAnalysis(student_number="220100008", credit=850.00, balance=-850.00, date_of_balance=date(2026, 8, 1))
     )
 
     # 9. Disability flag set - to prove it is never disclosed.
@@ -304,10 +304,10 @@ def _students():
     registrations.append(
         Registration(student_number="220100009", qualification="Bachelor of English and Linguistics",
                      registration_year=2025, academic_block="Full Year", offering_type="Full-time",
-                     period_of_study="Semester 2", registration_date=date(2025, 7, 6), faculty=FACULTIES[3],
+                     period_of_study="Semester 2", registration_date=date(2026, 7, 6), faculty=FACULTIES[3],
                      department="Department of Communication and Languages")
     )
-    age_analyses.append(AgeAnalysis(student_number="220100009", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100009", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 10. Two applications, second preference accepted.
     add_student(
@@ -337,10 +337,10 @@ def _students():
     registrations.append(
         Registration(student_number="220100010", qualification="Bachelor of Technology in Mechanical Engineering",
                      registration_year=2025, academic_block="Full Year", offering_type="Full-time",
-                     period_of_study="Semester 2", registration_date=date(2025, 7, 9), faculty=FACULTIES[1],
+                     period_of_study="Semester 2", registration_date=date(2026, 7, 9), faculty=FACULTIES[1],
                      department="Department of Mechanical, Industrial and Electrical Engineering")
     )
-    age_analyses.append(AgeAnalysis(student_number="220100010", balance=0.0, date_of_balance=date(2025, 8, 1)))
+    age_analyses.append(AgeAnalysis(student_number="220100010", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 11-20: filler students for volume/realism - simpler, still complete.
     filler = [
@@ -369,16 +369,16 @@ def _students():
         registrations.append(
             Registration(student_number=num, qualification=qual, registration_year=2025,
                          academic_block="Full Year", offering_type="Full-time", period_of_study="Semester 2",
-                         registration_date=date(2025, 7, 5 + (i % 10)), faculty=faculty,
+                         registration_date=date(2026, 7, 5 + (i % 10)), faculty=faculty,
                          department=faculty.replace("Faculty of ", "School of "))
         )
         if balance > 0:
             fee_lines.append(
-                FeeLine(student_number=num, date=date(2025, 7, 15), reference="TUITION2025S2",
+                FeeLine(student_number=num, date=date(2026, 7, 15), reference="TUITION2025S2",
                         description="Semester 2 tuition fee", debit=balance, balance=balance)
             )
         age_analyses.append(
-            AgeAnalysis(student_number=num, days_30=balance, balance=balance, date_of_balance=date(2025, 8, 1))
+            AgeAnalysis(student_number=num, days_30=balance, balance=balance, date_of_balance=date(2026, 8, 1))
         )
 
     return students, applications, registrations, subjects, fee_lines, age_analyses, bursaries

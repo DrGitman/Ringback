@@ -16,6 +16,8 @@ DeterministicPreparer (the original keyword classifier + single-pass
 TF-IDF) rather than failing the case.
 """
 
+import datetime
+import json
 import logging
 import os
 import time
@@ -27,12 +29,22 @@ from google import genai
 from google.genai import types
 
 from .classifier import classify
-from .directory import Student
+from .directory import Student, format_currency
 from .retrieval import _blocks, _search, build_briefing, build_supplementary_briefing, get_retriever
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "gemini-2.5-flash"
+# gemini-2.5-flash's free tier is 20 requests/day and 5/minute - verified
+# empirically (the 429 body states the exact quotaValue), not assumed.
+# That's unworkable for development or a live demo. Quota is scoped
+# per-model (confirmed the same way), so a different model has separate,
+# unexhausted quota. gemini-2.5-flash-lite and gemini-2.0-flash - both
+# named in earlier advice - are already 404 for this key ("no longer
+# available to new users"); gemini-3.5-flash-lite is the current
+# equivalent and works today. Pinned to an explicit version rather than
+# the "-latest" alias, since an alias can change behavior out from under
+# a near-final demo without any code change to notice.
+MODEL_NAME = "gemini-3.5-flash-lite"
 MAX_ITERATIONS = 4
 _MODEL_ATTEMPTS = 2
 _MODEL_BACKOFF_SECONDS = 1.5
@@ -165,18 +177,56 @@ def _submit_plan_decl(office_keys: List[str]) -> types.FunctionDeclaration:
     )
 
 
+# Fields the disclosure rules say must never be spoken to anyone, or used to
+# confirm identity only - not reasoned about or repeated in a briefing. Scrubbed
+# from the model's input entirely rather than merely prompted against, so a
+# leak (e.g. an invented honorific inferred from gender) can't happen even if
+# the model ignores an instruction. See _disclosure_and_channel_instructions()
+# in dispatcher.py for the parallel rule enforced during the call itself.
+_NEVER_DISCLOSED_FIELDS = {"gender", "marital_status", "disability", "id_number", "birthdate"}
+
+# Keys anywhere in the student record whose value is money, so every amount
+# reaches the model already formatted - the model is not asked to format
+# currency itself, only to use the string it's given.
+_CURRENCY_FIELDS = {
+    "fee_balance", "quote_total", "debit", "credit", "balance", "awarded",
+    "allocated", "unallocated", "days_160", "days_90", "days_60", "days_30",
+    "current", "future",
+}
+
+
+def _sanitize_for_model(value):
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            if k in _NEVER_DISCLOSED_FIELDS:
+                continue
+            if k in _CURRENCY_FIELDS and isinstance(v, (int, float)):
+                out[k] = format_currency(v)
+            else:
+                out[k] = _sanitize_for_model(v)
+        return out
+    if isinstance(value, list):
+        return [_sanitize_for_model(v) for v in value]
+    return value
+
+
 def _system_instruction(query: str, student: Optional[Student], tenant: dict, office_keys: List[str]) -> str:
-    record_text = (
-        student.model_dump_json(indent=2)
-        if student
-        else "No student record - caller has not provided a student number, or none matched."
-    )
+    if student:
+        sanitized = _sanitize_for_model(student.model_dump(mode="json"))
+        record_text = json.dumps(sanitized, indent=2, default=str)
+    else:
+        record_text = "No student record - caller has not provided a student number, or none matched."
+    today = datetime.date.today().isoformat()
     return (
         f"You are the reasoning step for {tenant['short_name']}'s callback system, "
         f"{tenant['calling_office']}. A student submitted a question through an intake "
         "form; nobody has spoken to them yet. You are NOT answering them yourself - you "
         "are preparing a briefing for a separate calling agent (CALL-E) that will phone "
         "them shortly. You never speak to the caller.\n\n"
+        f"Today's date is {today}. Use it to judge whether any deadline in the record or "
+        "the knowledge base has already passed - never just recite a deadline, say "
+        "explicitly whether it's still open or has passed.\n\n"
         f"Valid intents: {', '.join(INTENTS)}.\n\n"
         "Work out what the caller actually needs, including how a KB rule and their own "
         "record interact if both apply (e.g. a fee balance can block a subject drop "
@@ -189,6 +239,13 @@ def _system_instruction(query: str, student: Optional[Student], tenant: dict, of
         "Otherwise write the briefing paragraph yourself, grounded only in what "
         "search_kb returned and the record below - never invent a date, amount, or "
         "requirement that isn't in one of those two places.\n\n"
+        "Write the briefing in second person, addressed directly to the caller ('you', "
+        "'your') - never third person ('the student', 'they'), never a name plus title. "
+        "Any currency amount you use is already formatted in the record below (e.g. "
+        "\"N$2,340.00\") - copy it exactly, never reformat or recompute it. Never invent "
+        "an honorific, gender, or title for the caller - fields that would reveal those "
+        "have been deliberately withheld from you, so refer to them only by name or "
+        "'you'.\n\n"
         f'Caller\'s exact words: "{query}"\n\n'
         f"Caller's record:\n{record_text}\n\n"
         "When ready, call submit_plan exactly once."

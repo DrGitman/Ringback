@@ -8,6 +8,12 @@ from sqlmodel import Session, select
 
 DATA_PATH = Path(__file__).parent / "data" / "students.json"
 
+# Every N$ amount that reaches a task string or a model prompt goes through
+# this, so "2340.0", "N$4100.00", and "850.0" never show up side by side in
+# the same call again - one format, applied once, everywhere money is used.
+def format_currency(amount: float) -> str:
+    return f"N${amount:,.2f}"
+
 
 class Subject(BaseModel):
     code: str

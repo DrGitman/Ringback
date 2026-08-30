@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlmodel import Session
 
 from .calle_client import CalleClient
-from .directory import SqlDirectory
+from .directory import SqlDirectory, format_currency
 from .models import (
     Case,
     engine,
@@ -98,8 +98,9 @@ def _disclosure_and_channel_instructions(tenant: dict) -> str:
         "you may confirm a detail back to them only if they state it first.\n\n"
         "Some requests cannot be completed on this call: payment arrangements, "
         "appeals, deferrals, registration cancellation, name or ID corrections, "
-        "student number recovery, transcript requests, and disability "
-        "accommodations. When one of these comes up, say so, explain why briefly, "
+        "student number recovery, transcript requests, disability "
+        "accommodations, and updating contact details (email, cellphone, or "
+        "address). When one of these comes up, say so, explain why briefly, "
         "and give the exact next step - the office name, its email, and its "
         "location. Office directory: "
         f"{directory}. Set channel to email, in_person, or route accordingly, and "
@@ -144,7 +145,7 @@ def build_task(case: Case, student, tenant: dict, briefing: str = "") -> str:
         if student.fee_balance > 0:
             lines.append(
                 f"Their proof of registration cannot be issued because they have an "
-                f"outstanding balance of N${student.fee_balance:.2f}. Explain this warmly "
+                f"outstanding balance of {format_currency(student.fee_balance)}. Explain this warmly "
                 f"and without blame. Tell them it can be settled at the Cashier's Office "
                 f"or by EFT, and that the document is issued automatically within 24 "
                 f"hours of payment clearing. Ask whether they'd like the Fees Office to "
