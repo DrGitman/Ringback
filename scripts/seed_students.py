@@ -104,12 +104,12 @@ def _students():
     # 2. Registered but blocked by an outstanding balance (proof-of-reg case).
     add_student(
         student_number="220100002",
-        full_name="Tunga Amutenya",
+        full_name="Hafeni Amutenya",
         gender="M",
         home_language="Oshiwambo",
         birthdate=date(2002, 11, 3),
         id_number="02110300456",
-        email="tamutenya@nust.na",
+        email="hamutenya@nust.na",
         cellphone="+264810000002",
         postal_address="P.O. Box 1002, Windhoek",
         study_address="Katutura, Windhoek",
@@ -140,11 +140,11 @@ def _students():
     # 3. One subject past its drop deadline, another still inside it.
     add_student(
         student_number="220100003",
-        full_name="Maria Kavari",
+        full_name="Uandjisa Kavari",
         home_language="Otjiherero",
         birthdate=date(2003, 6, 20),
         id_number="03062000789",
-        email="mkavari@nust.na",
+        email="ukavari@nust.na",
         cellphone="+264810000003",
         postal_address="P.O. Box 1003, Windhoek",
         study_address="Khomasdal, Windhoek",
@@ -203,12 +203,15 @@ def _students():
 
     # 5. Bursary awarded with a large unallocated portion.
     add_student(
+        # Khoekhoegowab (Damara/Nama) surnames are gendered - "-ab" is the
+        # masculine form, "-as" the feminine one (e.g. Uirab / Uiras). Selma
+        # is a woman, hence Uiras, not Uirab.
         student_number="220100005",
-        full_name="Selma Uirab",
+        full_name="Karere Uiras",
         home_language="Khoekhoegowab",
         birthdate=date(2003, 1, 30),
         id_number="03013000567",
-        email="suirab@nust.na",
+        email="kuiras@nust.na",
         cellphone="+264810000005",
         postal_address="P.O. Box 1005, Windhoek",
         study_address="Otjomuise, Windhoek",
@@ -256,11 +259,11 @@ def _students():
     # 7. Application cancelled with a stated reason.
     add_student(
         student_number="220100007",
-        full_name="Rauna Nekundi",
+        full_name="Nangula Nekundi",
         home_language="Oshiwambo",
         birthdate=date(2004, 2, 17),
         id_number="04021700345",
-        email="rnekundi@nust.na",
+        email="nnekundi@nust.na",
         cellphone="+264810000007",
         postal_address="P.O. Box 1007, Windhoek",
         study_address="Not yet registered",
@@ -362,14 +365,18 @@ def _students():
     # home_language varies deliberately - Namibia has many language
     # communities (Oshiwambo is the largest, but far from the only one), and
     # a filler roster that's silently 100% one of them is exactly the bias
-    # this file used to have by default (see add_student() above).
+    # this file used to have by default (see add_student() above). Names mix
+    # traditional and English first names deliberately (both are genuinely
+    # common in Namibia, not an either/or), and a couple of students
+    # deliberately share a first name or surname with someone else on the
+    # roster - unrelated people sharing a name is normal, not a data bug.
     filler = [
         ("220100011", "Aina Shivute", "F", "Oshiwambo", "Bachelor of Informatics", FACULTIES[0], 0.0),
         ("220100012", "Frans Mukwiilongo", "M", "Oshiwambo", "Bachelor of Public Management", FACULTIES[3], 620.0),
-        ("220100013", "Justina Sitali", "F", "Silozi", "Bachelor of Land Administration", FACULTIES[1], 0.0),
-        ("220100014", "Sacky Haufiku", "M", "Oshiwambo", "Bachelor of Environmental Health Science", FACULTIES[2], 1500.0),
+        ("220100013", "Namukolo Sitali", "F", "Silozi", "Bachelor of Land Administration", FACULTIES[1], 0.0),
+        ("220100014", "Sacky Shivute", "M", "Oshiwambo", "Bachelor of Environmental Health Science", FACULTIES[2], 1500.0),
         ("220100015", "Loide Nekongo", "F", "Oshiwambo", "Bachelor of Business Management", FACULTIES[3], 0.0),
-        ("220100016", "Absalom Moeng", "M", "Setswana", "Bachelor of Geomatics", FACULTIES[1], 0.0),
+        ("220100016", "Johannes Moeng", "M", "Setswana", "Bachelor of Geomatics", FACULTIES[1], 0.0),
         ("220100017", "Ndapewa Amwaama", "F", "Oshiwambo", "Bachelor of Applied Mathematics and Statistics", FACULTIES[2], 0.0),
         ("220100018", "Petrus Tjombe", "M", "Otjiherero", "Bachelor of Entrepreneurship", FACULTIES[3], 300.0),
         ("220100019", "Elizabeth Beukes", "F", "Afrikaans", "Bachelor of Computer Science in Cyber Security", FACULTIES[0], 0.0),
