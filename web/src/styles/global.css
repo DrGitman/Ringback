@@ -43,6 +43,7 @@ input, textarea, button { font-family: inherit; font-size: inherit; }
 .brand-name { font-family: var(--font-head); font-weight: 700; font-size: 18px; color: var(--red); }
 
 .mobile-topbar { border-bottom: 1px solid var(--border); padding: 16px 20px; }
+.mobile-topbar--split { display: flex; align-items: center; justify-content: space-between; }
 
 .page-heading { font-size: 26px; font-weight: 800; margin-bottom: 8px; }
 .page-heading--center { text-align: center; }
@@ -108,10 +109,12 @@ textarea { resize: vertical; }
 .confirmation-phone { font-size: 16px; text-align: center; margin: 4px 0 0; }
 .confirmation-copy { color: var(--grey600); max-width: 320px; margin: 0; }
 .text-link { color: var(--red); text-decoration: none; font-weight: 600; margin-top: 16px; }
+.text-link--inline { margin-top: 0; font-size: 13px; }
 
 /* Dashboard */
 .top-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 .top-bar__meta { color: var(--grey600); font-size: 13px; }
+.top-bar__right { display: flex; align-items: center; gap: 16px; }
 
 .dashboard-layout { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
 .queue-panel { position: sticky; top: 24px; }
@@ -172,6 +175,18 @@ textarea { resize: vertical; }
 
 .failed-box { background: var(--red-tint); border-radius: var(--r-card); padding: 16px; text-align: center; }
 .failed-box p { margin: 4px 0; }
+.failed-box__actions { margin-top: 12px; }
+
+.action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.action-row__select {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--ink);
+}
 
 .empty-state { text-align: center; padding: 24px 12px; }
 .empty-state__title { font-weight: 700; margin: 0 0 6px; }

@@ -106,6 +106,7 @@ def _students():
         student_number="220100002",
         full_name="Tunga Amutenya",
         gender="M",
+        home_language="Oshiwambo",
         birthdate=date(2002, 11, 3),
         id_number="02110300456",
         email="tamutenya@nust.na",
@@ -139,10 +140,11 @@ def _students():
     # 3. One subject past its drop deadline, another still inside it.
     add_student(
         student_number="220100003",
-        full_name="Maria Nghipandulwa",
+        full_name="Maria Kavari",
+        home_language="Otjiherero",
         birthdate=date(2003, 6, 20),
         id_number="03062000789",
-        email="mnghipandulwa@nust.na",
+        email="mkavari@nust.na",
         cellphone="+264810000003",
         postal_address="P.O. Box 1003, Windhoek",
         study_address="Khomasdal, Windhoek",
@@ -170,6 +172,7 @@ def _students():
         student_number="220100004",
         full_name="Johannes Shikongo",
         gender="M",
+        home_language="Oshiwambo",
         birthdate=date(2001, 9, 14),
         id_number="01091400234",
         email="jshikongo@nust.na",
@@ -201,10 +204,11 @@ def _students():
     # 5. Bursary awarded with a large unallocated portion.
     add_student(
         student_number="220100005",
-        full_name="Selma Iipinge",
+        full_name="Selma Uirab",
+        home_language="Khoekhoegowab",
         birthdate=date(2003, 1, 30),
         id_number="03013000567",
-        email="siipinge@nust.na",
+        email="suirab@nust.na",
         cellphone="+264810000005",
         postal_address="P.O. Box 1005, Windhoek",
         study_address="Otjomuise, Windhoek",
@@ -225,11 +229,12 @@ def _students():
     # 6. Exam entry denied on low attendance/project mark.
     add_student(
         student_number="220100006",
-        full_name="Erastus Kauluma",
+        full_name="Erastus Sitentu",
         gender="M",
+        home_language="Rukwangali",
         birthdate=date(2002, 5, 8),
         id_number="02050800890",
-        email="ekauluma@nust.na",
+        email="esitentu@nust.na",
         cellphone="+264810000006",
         postal_address="P.O. Box 1006, Windhoek",
         study_address="Rocky Crest, Windhoek",
@@ -252,6 +257,7 @@ def _students():
     add_student(
         student_number="220100007",
         full_name="Rauna Nekundi",
+        home_language="Oshiwambo",
         birthdate=date(2004, 2, 17),
         id_number="04021700345",
         email="rnekundi@nust.na",
@@ -273,6 +279,7 @@ def _students():
     add_student(
         student_number="220100008",
         full_name="Petrina Uushona",
+        home_language="Oshiwambo",
         birthdate=date(2003, 10, 25),
         id_number="03102500678",
         email="puushona@nust.na",
@@ -299,6 +306,7 @@ def _students():
     add_student(
         student_number="220100009",
         full_name="Ottilie Haingura",
+        home_language="Rukwangali",
         birthdate=date(2002, 8, 2),
         id_number="02080200901",
         email="ohaingura@nust.na",
@@ -321,6 +329,7 @@ def _students():
         student_number="220100010",
         full_name="Immanuel Katjivena",
         gender="M",
+        home_language="Otjiherero",
         birthdate=date(2003, 3, 11),
         id_number="03031100112",
         email="ikatjivena@nust.na",
@@ -350,21 +359,25 @@ def _students():
     age_analyses.append(AgeAnalysis(student_number="220100010", balance=0.0, date_of_balance=date(2026, 8, 1)))
 
     # 11-20: filler students for volume/realism - simpler, still complete.
+    # home_language varies deliberately - Namibia has many language
+    # communities (Oshiwambo is the largest, but far from the only one), and
+    # a filler roster that's silently 100% one of them is exactly the bias
+    # this file used to have by default (see add_student() above).
     filler = [
-        ("220100011", "Aina Shivute", "F", "Bachelor of Informatics", FACULTIES[0], 0.0),
-        ("220100012", "Frans Mukwiilongo", "M", "Bachelor of Public Management", FACULTIES[3], 620.0),
-        ("220100013", "Justina Amupolo", "F", "Bachelor of Land Administration", FACULTIES[1], 0.0),
-        ("220100014", "Sacky Haufiku", "M", "Bachelor of Environmental Health Science", FACULTIES[2], 1500.0),
-        ("220100015", "Loide Nekongo", "F", "Bachelor of Business Management", FACULTIES[3], 0.0),
-        ("220100016", "Absalom Shigwedha", "M", "Bachelor of Geomatics", FACULTIES[1], 0.0),
-        ("220100017", "Ndapewa Amwaama", "F", "Bachelor of Applied Mathematics and Statistics", FACULTIES[2], 0.0),
-        ("220100018", "Petrus Kamati", "M", "Bachelor of Entrepreneurship", FACULTIES[3], 300.0),
-        ("220100019", "Hilja Nangolo", "F", "Bachelor of Computer Science in Cyber Security", FACULTIES[0], 0.0),
-        ("220100020", "Gabriel Tjitunga", "M", "Bachelor of Science", FACULTIES[2], 0.0),
+        ("220100011", "Aina Shivute", "F", "Oshiwambo", "Bachelor of Informatics", FACULTIES[0], 0.0),
+        ("220100012", "Frans Mukwiilongo", "M", "Oshiwambo", "Bachelor of Public Management", FACULTIES[3], 620.0),
+        ("220100013", "Justina Sitali", "F", "Silozi", "Bachelor of Land Administration", FACULTIES[1], 0.0),
+        ("220100014", "Sacky Haufiku", "M", "Oshiwambo", "Bachelor of Environmental Health Science", FACULTIES[2], 1500.0),
+        ("220100015", "Loide Nekongo", "F", "Oshiwambo", "Bachelor of Business Management", FACULTIES[3], 0.0),
+        ("220100016", "Absalom Moeng", "M", "Setswana", "Bachelor of Geomatics", FACULTIES[1], 0.0),
+        ("220100017", "Ndapewa Amwaama", "F", "Oshiwambo", "Bachelor of Applied Mathematics and Statistics", FACULTIES[2], 0.0),
+        ("220100018", "Petrus Tjombe", "M", "Otjiherero", "Bachelor of Entrepreneurship", FACULTIES[3], 300.0),
+        ("220100019", "Elizabeth Beukes", "F", "Afrikaans", "Bachelor of Computer Science in Cyber Security", FACULTIES[0], 0.0),
+        ("220100020", "Gabriel Tjitunga", "M", "Otjiherero", "Bachelor of Science", FACULTIES[2], 0.0),
     ]
-    for i, (num, name, gender, qual, faculty, balance) in enumerate(filler):
+    for i, (num, name, gender, language, qual, faculty, balance) in enumerate(filler):
         add_student(
-            student_number=num, full_name=name, gender=gender,
+            student_number=num, full_name=name, gender=gender, home_language=language,
             birthdate=date(2002 + (i % 3), 1 + (i % 12), 1 + (i % 27)),
             id_number=f"0{2 + i % 3}0{1 + i % 9}0{1 + i % 27:02d}{100 + i}",
             email=f"{name.split()[0][0].lower()}{name.split()[1].lower()}@nust.na",

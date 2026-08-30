@@ -35,3 +35,29 @@ export async function createCase(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export async function listOffices(tenantId = "nust") {
+  const res = await request(`/api/tenants/${encodeURIComponent(tenantId)}/offices`);
+  if (!res.ok) throw new Error("Could not load office list.");
+  return res.json();
+}
+
+export async function routeCase(caseId, officeKey, reason) {
+  const res = await request(`/api/cases/${caseId}/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ office_key: officeKey, reason }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || "Could not route this case.");
+  return res.json();
+}
+
+export async function markCaseHandled(caseId, note) {
+  const res = await request(`/api/cases/${caseId}/mark-handled`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || "Could not mark this case handled.");
+  return res.json();
+}

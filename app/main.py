@@ -29,7 +29,7 @@ from .models import (
     init_db,
 )
 from .retrieval import get_retriever
-from .tenants import TENANTS_ROOT
+from .tenants import TENANTS_ROOT, load_tenant
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -248,4 +248,95 @@ def get_case(case_id: int, session: Session = Depends(get_session)):
     case = session.get(Case, case_id)
     if not case:
         raise HTTPException(404, "Case not found")
+    return CaseOut.from_case(case)
+
+
+@app.get("/api/tenants/{tenant_id}/offices")
+def list_offices(tenant_id: str):
+    """So the dashboard's manual-route picker can list real office choices
+    instead of a hardcoded frontend list - tenant config is backend-owned
+    (tenants/*.json), same reasoning as everything else in that file.
+    """
+    try:
+        tenant = load_tenant(tenant_id)
+    except FileNotFoundError:
+        raise HTTPException(404, "Unknown tenant")
+    return tenant["offices"]
+
+
+_TERMINAL_STATUSES = ("resolved", "routed", "failed")
+
+
+class RouteRequest(BaseModel):
+    office_key: str
+    reason: Optional[str] = None
+
+
+@app.post("/api/cases/{case_id}/route", response_model=CaseOut)
+def route_case_manually(
+    case_id: int, payload: RouteRequest, session: Session = Depends(get_session)
+):
+    """Staff-triggered override, distinct from router.route_case() (which
+    fires automatically once a completed call comes back unresolved). This
+    can happen from any of dashboard, so a case still "calling" can be
+    diverted before its call ever completes.
+
+    This does not hang up an in-flight CALL-E call - there's no cancel
+    endpoint for that (see calle_client.py). It stops Ringback's own
+    tracking of the case: _poll_case()'s loop checks case.status at the top
+    of every iteration and returns once it sees "routed", so the background
+    poll for this case_id ends on its next tick. A call already ringing may
+    still complete on CALL-E's side; its result is simply no longer waited
+    on or acted upon here.
+    """
+    case = session.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+    if case.status in _TERMINAL_STATUSES:
+        raise HTTPException(409, f"Case is already {case.status}, nothing to route.")
+
+    tenant = load_tenant(case.tenant_id)
+    offices = tenant["offices"]
+    office = offices.get(payload.office_key)
+    if office is None:
+        raise HTTPException(400, f"Unknown office '{payload.office_key}' for this tenant.")
+
+    case.routed_office = office["name"]
+    case.routed_contact = f"{office['contact']} · {office['email']}"
+    case.routed_reason = payload.reason or "Routed to a person by staff."
+    case.channel = "route"
+    case.channel_reason = case.routed_reason
+    case.status = "routed"
+    session.add(case)
+    session.commit()
+    session.refresh(case)
+    return CaseOut.from_case(case)
+
+
+class MarkHandledRequest(BaseModel):
+    note: Optional[str] = None
+
+
+@app.post("/api/cases/{case_id}/mark-handled", response_model=CaseOut)
+def mark_case_handled(
+    case_id: int, payload: MarkHandledRequest, session: Session = Depends(get_session)
+):
+    """For a case that exhausted its 3 call attempts with no answer (the
+    "manual callback" state) - a staff member who dealt with it some other
+    way (a manual phone call, walking over to the person) marks it resolved
+    themselves. Deliberately restricted to "failed" - a case still calling
+    or already routed has its own path to resolution and shouldn't be
+    silently closed out from under it.
+    """
+    case = session.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
+    if case.status != "failed":
+        raise HTTPException(409, f"Only a failed case can be marked handled (this one is {case.status}).")
+
+    case.status = "resolved"
+    case.call_status = payload.note or "Marked resolved manually by staff."
+    session.add(case)
+    session.commit()
+    session.refresh(case)
     return CaseOut.from_case(case)

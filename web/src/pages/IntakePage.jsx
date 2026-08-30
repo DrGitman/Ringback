@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import PillButton from "../components/PillButton";
 import FieldLabel from "../components/FieldLabel";
@@ -56,11 +56,12 @@ export default function IntakePage() {
 
   return (
     <>
-      <div className="mobile-topbar">
+      <div className="mobile-topbar mobile-topbar--split">
         <div className="brand-row" style={{ marginBottom: 0 }}>
           <img src={logoMark} alt="" className="brand-mark" />
           <span className="brand-name">Ringback</span>
         </div>
+        <Link to="/dashboard" className="text-link text-link--inline">Staff dashboard</Link>
       </div>
       <div className="page page--mobile">
         <h1 className="page-heading">Ask the Registrar's office</h1>

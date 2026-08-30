@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Card from "../components/Card";
 import MonoValue from "../components/MonoValue";
 import Panel from "../components/Panel";
+import PillButton from "../components/PillButton";
 import StatusPill from "../components/StatusPill";
 import logoMark from "../assets/ringback-mark.png";
-import { listCases } from "../api";
+import { listCases, listOffices, markCaseHandled, routeCase } from "../api";
+
+const OPEN_STATUSES = ["received", "classified", "calling"];
 
 const INTENT_LABELS = {
   proof_of_registration: "Proof of registration",
@@ -74,7 +78,12 @@ export default function DashboardPage() {
           <img src={logoMark} alt="" className="brand-mark" />
           <span className="brand-name">Ringback</span>
         </div>
-        <span className="top-bar__meta">NUST · Registrar's office</span>
+        <div className="top-bar__right">
+          <span className="top-bar__meta">NUST · Registrar's office</span>
+          <Link to="/">
+            <PillButton variant="primary">New callback</PillButton>
+          </Link>
+        </div>
       </div>
 
       <div className="dashboard-layout">
@@ -112,7 +121,7 @@ export default function DashboardPage() {
 
         <div className="detail-column">
           {selected ? (
-            <CaseDetail key={selected.id} item={selected} />
+            <CaseDetail key={selected.id} item={selected} onChanged={refresh} />
           ) : (
             <Panel title="Case detail">
               <p className="empty-state__body">Select a case from the queue.</p>
@@ -124,7 +133,64 @@ export default function DashboardPage() {
   );
 }
 
-function CaseDetail({ item }) {
+function RouteToPersonAction({ item, onChanged }) {
+  const [offices, setOffices] = useState(null);
+  const [officeKey, setOfficeKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    listOffices(item.tenant_id)
+      .then((data) => {
+        setOffices(data);
+        setOfficeKey((current) => current || Object.keys(data)[0] || "");
+      })
+      .catch(() => setError("Could not load office list."));
+  }, [item.tenant_id]);
+
+  async function handleRoute() {
+    if (!officeKey) return;
+    setBusy(true);
+    setError("");
+    try {
+      await routeCase(item.id, officeKey);
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!OPEN_STATUSES.includes(item.status)) return null;
+
+  return (
+    <div className="inset-box">
+      <p className="field-label">Divert this case</p>
+      <div className="action-row">
+        <select
+          className="action-row__select"
+          value={officeKey}
+          onChange={(e) => setOfficeKey(e.target.value)}
+          disabled={!offices || busy}
+        >
+          {offices &&
+            Object.entries(offices).map(([key, office]) => (
+              <option key={key} value={key}>
+                {office.name}
+              </option>
+            ))}
+        </select>
+        <PillButton variant="secondary" onClick={handleRoute} disabled={busy || !officeKey}>
+          {busy ? "Routing…" : "Route to a person"}
+        </PillButton>
+      </div>
+      {error && <p className="form-error">{error}</p>}
+    </div>
+  );
+}
+
+function CaseDetail({ item, onChanged }) {
   const result = item.structured_result;
   const name = displayName(item);
   const breadcrumbSource = item.student_name || item.caller_name;
@@ -247,9 +313,39 @@ function CaseDetail({ item }) {
           <div className="failed-box">
             <p className="card-title">No answer after {item.call_attempts} attempts</p>
             <p>This student will need a manual callback.</p>
+            <MarkHandledAction item={item} onChanged={onChanged} />
           </div>
         )}
+
+        <RouteToPersonAction item={item} onChanged={onChanged} />
       </Panel>
+    </div>
+  );
+}
+
+function MarkHandledAction({ item, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleClick() {
+    setBusy(true);
+    setError("");
+    try {
+      await markCaseHandled(item.id);
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="failed-box__actions">
+      <PillButton variant="secondary" onClick={handleClick} disabled={busy}>
+        {busy ? "Marking…" : "Mark as handled"}
+      </PillButton>
+      {error && <p className="form-error">{error}</p>}
     </div>
   );
 }

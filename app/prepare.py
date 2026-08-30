@@ -408,7 +408,12 @@ class ModelPreparer:
         retriever = get_retriever(tenant["id"])
         office_keys = list(tenant["offices"].keys())
         tools = [types.Tool(function_declarations=[_SEARCH_KB_DECL, _submit_plan_decl(tenant["offices"])])]
-        config = types.GenerateContentConfig(tools=tools)
+        # Low, not zero - the should_call/route_to decision benefits from
+        # consistency (seen flip-flopping on the exact same out-of-scope
+        # query across otherwise-identical runs at the default temperature),
+        # but the briefing is still meant to read as written in the model's
+        # own words, not a canned template.
+        config = types.GenerateContentConfig(tools=tools, temperature=0.2)
 
         contents = [
             types.Content(
@@ -478,7 +483,7 @@ class GroqPreparer:
 
         for _ in range(MAX_ITERATIONS):
             resp = self._client.chat.completions.create(
-                model=self._model, messages=messages, tools=tools, tool_choice="auto"
+                model=self._model, messages=messages, tools=tools, tool_choice="auto", temperature=0.2
             )
             message = resp.choices[0].message
             tool_calls = message.tool_calls
