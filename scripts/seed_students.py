@@ -51,15 +51,22 @@ def _students():
     def add_student(**kw):
         kw.setdefault("gender", "F")
         kw.setdefault("marital_status", "Single")
-        kw.setdefault("home_language", "Oshiwambo")
         kw.setdefault("citizenship", "Namibian")
         kw.setdefault("disability", None)
+        # home_language has no default on purpose - it used to, and every
+        # call below omitted it, so all 20 fictional students silently came
+        # out Oshiwambo-speaking. Namibia has many language communities
+        # (Otjiherero, Khoekhoegowab, Rukwangali, Silozi, Setswana, Afrikaans
+        # among them); a demo roster that erases all of them by default is a
+        # real bias, not a neutral placeholder. Every caller must now state
+        # it explicitly.
         students.append(Student(**kw))
 
     # 1. Clean record, zero balance, everything resolves.
     add_student(
         student_number="220100001",
         full_name="Ndinelago Amakali",
+        home_language="Oshiwambo",
         birthdate=date(2003, 4, 12),
         id_number="03041200123",
         email="namakali@nust.na",
