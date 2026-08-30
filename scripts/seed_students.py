@@ -419,7 +419,17 @@ def build(target: str) -> None:
             session.exec(delete(model))
         session.commit()
 
-        for row in students + applications + registrations + subjects + fee_lines + age_analyses + bursaries:
+        # Students committed on their own, before anything that references
+        # them. SQLite never enforces foreign keys by default, so a single
+        # combined add-everything-then-commit silently worked there; Postgres
+        # enforces them properly and rejected it (ageanalysis inserted before
+        # its student row existed) - explicit two-phase commit instead of
+        # relying on SQLAlchemy's automatic cross-table ordering.
+        for row in students:
+            session.add(row)
+        session.commit()
+
+        for row in applications + registrations + subjects + fee_lines + age_analyses + bursaries:
             session.add(row)
         session.commit()
 
