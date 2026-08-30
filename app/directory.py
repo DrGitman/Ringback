@@ -11,7 +11,12 @@ DATA_PATH = Path(__file__).parent / "data" / "students.json"
 # Every N$ amount that reaches a task string or a model prompt goes through
 # this, so "2340.0", "N$4100.00", and "850.0" never show up side by side in
 # the same call again - one format, applied once, everywhere money is used.
+# A negative amount here is a credit (e.g. AgeAnalysis.balance after a
+# refund), not a debt - "N$-850.00" reads like a mispriced item over the
+# phone, so it's worded as a credit instead of signed.
 def format_currency(amount: float) -> str:
+    if amount < 0:
+        return f"a credit of N${abs(amount):,.2f}"
     return f"N${amount:,.2f}"
 
 

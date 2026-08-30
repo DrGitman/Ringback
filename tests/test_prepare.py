@@ -32,10 +32,12 @@ load_dotenv()
 from app.directory import Student, Subject  # noqa: E402
 from app.prepare import ModelPreparer, prepare_call  # noqa: E402
 from app.prepare import _client as _model_client  # noqa: E402
+from app.prepare import _groq_client  # noqa: E402
 from app.tenants import load_tenant  # noqa: E402
 
 _tenant = load_tenant("nust")
 _HAS_MODEL = os.environ.get("GEMINI_API_KEY") is not None
+_HAS_GROQ = os.environ.get("GROQ_API_KEY") is not None
 
 
 def _skip(name: str) -> None:
@@ -106,7 +108,14 @@ def test_simple_out_of_scope_still_calls():
     assert plan.should_call is True, plan.reasoning
 
 
-def test_simulated_api_failure_falls_back_cleanly():
+def test_simulated_gemini_failure_falls_back_to_groq():
+    """Gemini down, Groq up - should resolve one tier down, not all the way
+    to deterministic. This is the whole point of a second provider: Gemini
+    has hit real 429s repeatedly (see module docstring), and every one of
+    those should now still get a model-reasoned plan, just from Groq.
+    """
+    if not _HAS_GROQ:
+        return _skip("test_simulated_gemini_failure_falls_back_to_groq")
     real_key = os.environ.get("GEMINI_API_KEY")
     os.environ["GEMINI_API_KEY"] = "invalid-key-for-testing"
     _model_client.cache_clear()
@@ -118,6 +127,28 @@ def test_simulated_api_failure_falls_back_cleanly():
         else:
             os.environ.pop("GEMINI_API_KEY", None)
         _model_client.cache_clear()
+
+    assert plan.preparer_used == "groq", plan.preparer_used
+    assert plan.should_call is True
+
+
+def test_simulated_total_outage_falls_back_to_deterministic():
+    real_gemini_key = os.environ.get("GEMINI_API_KEY")
+    real_groq_key = os.environ.get("GROQ_API_KEY")
+    os.environ["GEMINI_API_KEY"] = "invalid-key-for-testing"
+    os.environ["GROQ_API_KEY"] = "invalid-key-for-testing"
+    _model_client.cache_clear()
+    _groq_client.cache_clear()
+    try:
+        plan = prepare_call("what are your office hours", None, _tenant)
+    finally:
+        for env_key, real_value in (("GEMINI_API_KEY", real_gemini_key), ("GROQ_API_KEY", real_groq_key)):
+            if real_value is not None:
+                os.environ[env_key] = real_value
+            else:
+                os.environ.pop(env_key, None)
+        _model_client.cache_clear()
+        _groq_client.cache_clear()
 
     assert plan.preparer_used == "deterministic", plan.preparer_used
     assert plan.should_call is True

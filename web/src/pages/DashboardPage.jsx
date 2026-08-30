@@ -150,6 +150,9 @@ function CaseDetail({ item }) {
             {item.preparer_used === "deterministic" && (
               <span className="tag">Fallback: keyword + TF-IDF</span>
             )}
+            {item.preparer_used === "groq" && (
+              <span className="tag">Fallback: Groq (Gemini unavailable)</span>
+            )}
           </div>
           <div className="card-title">{INTENT_LABELS[item.intent] || "Unclassified"}</div>
           <MonoValue className="card-sub">

@@ -15,25 +15,36 @@
       "name": "Registrar's Office",
       "contact": "S. Kandjii",
       "email": "registrar@nust.na",
-      "location": "Admin Building, Ground Floor"
+      "location": "Admin Building, Ground Floor",
+      "handles": "registration, applications, admissions, general administration"
     },
     "fees": {
       "name": "Fees Office",
       "contact": "M. Iyambo",
       "email": "fees@nust.na",
-      "location": "Admin Building, Ground Floor"
+      "location": "Admin Building, Ground Floor",
+      "handles": "balances, payments, payment arrangements, refunds, bursary payouts"
     },
     "accommodation": {
       "name": "Student Accommodation Office",
       "contact": "T. Nakale",
       "email": "accommodation@nust.na",
-      "location": "Admin Building, Second Floor"
+      "location": "Admin Building, Second Floor",
+      "handles": "student housing and residence - NOT disability accommodations"
+    },
+    "student_support": {
+      "name": "Student Support Services",
+      "contact": "L. Amwaama",
+      "email": "studentsupport@nust.na",
+      "location": "Student Centre, First Floor",
+      "handles": "counselling, disability accommodations (exams, access), wellbeing, distressed callers"
     },
     "it_support": {
       "name": "IT Service Desk",
       "contact": "ICT Helpdesk",
       "email": "ithelp@nust.na",
-      "location": "Library Building, Ground Floor"
+      "location": "Library Building, Ground Floor",
+      "handles": "portal logins, password resets, technical issues"
     }
   }
 }
