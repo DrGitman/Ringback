@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import PillButton from "../components/PillButton";
 import FieldLabel from "../components/FieldLabel";
+import PhoneInput, { toE164, validateNumber } from "../components/PhoneInput";
 import logoMark from "../assets/ringback-mark.png";
 import { createCase, listCountries } from "../api";
 
@@ -44,14 +45,9 @@ export default function IntakePage() {
       setError("Choose a country.");
       return;
     }
-    // Length isn't validated per-country - CALL-E's docs don't specify
-    // national number lengths, only calling codes, so this is a general
-    // E.164-shaped sanity check (national numbers are 4-14 digits), not a
-    // Namibia-specific rule that would reject every other country's real
-    // numbers.
-    const digits = phoneLocal.replace(/\D/g, "").replace(/^0+/, "");
-    if (digits.length < 4 || digits.length > 14) {
-      setError("Enter a valid phone number.");
+    const numberError = validateNumber(phoneLocal);
+    if (numberError) {
+      setError(numberError);
       return;
     }
     if (!query.trim()) {
@@ -63,7 +59,7 @@ export default function IntakePage() {
       return;
     }
 
-    const phone = `+${selectedCountry.calling_code}${digits}`;
+    const phone = toE164(selectedCountry, phoneLocal);
     setSubmitting(true);
     try {
       const res = await createCase({
@@ -102,32 +98,14 @@ export default function IntakePage() {
           <form onSubmit={handleSubmit} className="intake-form">
             <div className="field">
               <FieldLabel>Phone number</FieldLabel>
-              <div className="phone-input">
-                <select
-                  className="phone-input__country mono"
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  aria-label="Country"
-                >
-                  {countries.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} +{c.calling_code}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="phone-input__number mono"
-                  inputMode="numeric"
-                  placeholder="81 234 5678"
-                  value={phoneLocal}
-                  onChange={(e) => setPhoneLocal(e.target.value)}
+              {countries.length > 0 && (
+                <PhoneInput
+                  countries={countries}
+                  countryCode={countryCode}
+                  onCountryChange={setCountryCode}
+                  number={phoneLocal}
+                  onNumberChange={setPhoneLocal}
                 />
-              </div>
-              {selectedCountry?.line_region === "international" && (
-                <p className="field-help">
-                  Calls to {selectedCountry.name} ring from an international CALL-E number, not a
-                  local one — please answer even if it looks unfamiliar.
-                </p>
               )}
             </div>
 
