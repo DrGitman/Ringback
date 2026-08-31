@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime
 
 from sqlmodel import Session
@@ -16,6 +17,8 @@ from .prepare import CallPlan, prepare_call
 from .router import route_case
 from .schemas import PROOF_OF_REG, SUBJECT_CANCELLATION, TRIAGE
 from .tenants import load_tenant
+
+logger = logging.getLogger(__name__)
 
 # Real calls: wait ~60s before the first poll, then every 5-10s, per the CALL-E
 # docs. The mock transport resolves in a few seconds, so it uses a tighter
@@ -59,6 +62,18 @@ def _apply_plan(case: Case, plan: CallPlan) -> None:
     if plan.sources_used:
         set_retrieved_sources(case, plan.sources_used)
     case.no_kb_coverage = not plan.sources_used and plan.intent == "other"
+
+    # Temperature 0.2 makes a should_call flip on identical input rarer, not
+    # impossible - it's still one model call per attempt, not a deterministic
+    # rule. If it happens on camera, this line (grep "prepare: decision") is
+    # what tells you it happened rather than leaving you to guess from a
+    # dashboard screenshot after the fact.
+    logger.info(
+        "prepare: decision case=%s intent=%s should_call=%s route_to=%s "
+        "confidence=%s preparer=%s",
+        case.id, plan.intent, plan.should_call, plan.route_to,
+        plan.confidence, plan.preparer_used,
+    )
 
 
 def _route_without_calling(case: Case, tenant: dict, plan: CallPlan) -> None:
