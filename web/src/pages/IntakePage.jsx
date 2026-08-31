@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import PillButton from "../components/PillButton";
 import FieldLabel from "../components/FieldLabel";
 import logoMark from "../assets/ringback-mark.png";
-import { createCase } from "../api";
+import { createCase, listCountries } from "../api";
+
+// Namibia is the reference deployment, so it's the default - but a judge
+// testing from anywhere else needs their own dial code, not a hardcoded
+// +264 they can't get past. Full list comes from the backend
+// (app/data/countries.json), not hardcoded here, since CALL-E has already
+// expanded its supported-country list once since this was built.
+const DEFAULT_COUNTRY = "NA";
 
 export default function IntakePage() {
+  const [countries, setCountries] = useState([]);
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY);
   const [phoneLocal, setPhoneLocal] = useState("");
   const [callerName, setCallerName] = useState("");
   const [query, setQuery] = useState("");
@@ -15,13 +24,34 @@ export default function IntakePage() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    listCountries()
+      .then(setCountries)
+      .catch(() => {
+        // Falls back to just Namibia if the list can't be fetched - the
+        // form still works for the reference deployment either way.
+        setCountries([{ code: "NA", name: "Namibia", calling_code: "264", line_region: "international" }]);
+      });
+  }, []);
+
+  const selectedCountry = countries.find((c) => c.code === countryCode);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
+    if (!selectedCountry) {
+      setError("Choose a country.");
+      return;
+    }
+    // Length isn't validated per-country - CALL-E's docs don't specify
+    // national number lengths, only calling codes, so this is a general
+    // E.164-shaped sanity check (national numbers are 4-14 digits), not a
+    // Namibia-specific rule that would reject every other country's real
+    // numbers.
     const digits = phoneLocal.replace(/\D/g, "").replace(/^0+/, "");
-    if (digits.length < 7) {
-      setError("Enter a valid Namibian phone number.");
+    if (digits.length < 4 || digits.length > 14) {
+      setError("Enter a valid phone number.");
       return;
     }
     if (!query.trim()) {
@@ -33,11 +63,12 @@ export default function IntakePage() {
       return;
     }
 
-    const phone = `+264${digits}`;
+    const phone = `+${selectedCountry.calling_code}${digits}`;
     setSubmitting(true);
     try {
       const res = await createCase({
         phone,
+        country_code: countryCode,
         caller_name: callerName.trim(),
         query: query.trim(),
         student_number: studentNumber.trim() || null,
@@ -72,7 +103,18 @@ export default function IntakePage() {
             <div className="field">
               <FieldLabel>Phone number</FieldLabel>
               <div className="phone-input">
-                <span className="phone-input__prefix mono">+264</span>
+                <select
+                  className="phone-input__country mono"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  aria-label="Country"
+                >
+                  {countries.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} +{c.calling_code}
+                    </option>
+                  ))}
+                </select>
                 <input
                   className="phone-input__number mono"
                   inputMode="numeric"
@@ -81,6 +123,12 @@ export default function IntakePage() {
                   onChange={(e) => setPhoneLocal(e.target.value)}
                 />
               </div>
+              {selectedCountry?.line_region === "international" && (
+                <p className="field-help">
+                  Calls to {selectedCountry.name} ring from an international CALL-E number, not a
+                  local one — please answer even if it looks unfamiliar.
+                </p>
+              )}
             </div>
 
             <div className="field">

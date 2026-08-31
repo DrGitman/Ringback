@@ -22,33 +22,42 @@ Explicitly not claimed: beating a dead-end IVR menu. Ringback removes the IVR ra
 
 ## How it works
 
-```
-Web intake form (student number optional)
-    ↓
-Case created in SQLite — original_query stored verbatim
-    ↓
-Classifier (keyword-based) → proof_of_registration | subject_cancellation | other
-    ↓
-Mock SIS lookup (if a student number was given) or knowledge-base file (if not)
-    ↓
-Dispatcher builds a task string + a result schema, calls CalleClient.dispatch()
-    ↓
-CALL-E plans, calls, adapts, returns a structured result
-    ↓
-Resolved ───────────────────────→ case closed, transcript + result stored
-   │
-   └─ Unresolved / no answer ───→ Router picks a named office+contact, or the
-                                   dispatcher retries (max 3 attempts) before
-                                   marking the case failed for a manual callback
+```mermaid
+flowchart TD
+    A["Web intake form<br/>(student number optional)"] --> B["Case created, returned to the<br/>browser immediately —<br/>original_query stored verbatim"]
+    B -.->|background task from here on| C["prepare_call() — reasoning agent<br/>(Gemini → Groq → deterministic fallback)<br/><br/>reads the query + the student's SQL record,<br/>searches the knowledge base, decides intent,<br/>and either writes a grounded briefing or<br/>concludes the case needs a human and never dials"]
+    C --> D["Dispatcher builds a task string + result schema<br/>calls CalleClient.dispatch()"]
+    D --> E["CALL-E plans, calls, adapts,<br/>returns a structured result"]
+    E -->|Resolved| F["Case closed<br/>transcript + result stored"]
+    E -->|"Unresolved / no answer"| G["Router picks a named office + contact,<br/>or the dispatcher retries (max 3 attempts)<br/>before marking the case failed<br/>for a manual callback"]
+    G -.->|staff can also act by hand| H["Route to a person, or<br/>mark handled manually"]
 ```
 
 The dashboard polls `GET /api/cases` every 2 seconds — no websockets — so a judge watching the demo sees a case's status change on its own.
 
 ## Who's the agent here
 
-Ringback itself is a deterministic pipeline: classify → look up → fill a template → dispatch → poll → route. Every branch above is code that runs the same way on every call — there's no model in Ringback deciding what to do next.
+**Two agents, different jobs.** Ringback runs a reasoning agent before the call: it reads the query alongside the student's record, decides what to look up, searches the knowledge base — more than once if the first pass doesn't answer the question — judges whether it has enough to proceed, and either writes a grounded briefing or concludes the case needs a human and never dials. That last decision is where the disclosure boundary lives: a parent asking about their child's balance is routed, not called.
 
-**CALL-E is the agent.** It plans the call, adapts in real time to whatever the student actually says, handles interruptions and voicemail, and returns the structured result Ringback acts on. Ringback orchestrates an agent; it is not one itself, and that's a deliberate choice, not a shortfall — a pipeline that behaves identically on take four is worth more than architectural cleverness when you're filming a three-minute demo. See "Future work" below for what a genuinely agentic version of Ringback would look like, and why it isn't built yet.
+CALL-E is the agent on the phone. It plans the call, adapts to whatever the student actually says, handles interruptions and voicemail, and returns a structured result. Ringback can't intervene mid-call — there's no hook for it — which is why the briefing has to be complete before the phone rings.
+
+Everything between the two is deterministic: dispatch, polling, retries, routing. The reasoning is deliberately concentrated in one place (`prepare_call()`, `app/prepare.py`), with a keyword-and-retrieval fallback if the model is unavailable, so a provider outage degrades the briefing rather than dropping the call.
+
+### The reasoning chain: Gemini → Groq → deterministic
+
+Three `Preparer` implementations, tried in order, each degrading to the next rather than failing the case:
+
+1. **`ModelPreparer`** (Gemini, `gemini-3.5-flash-lite`) — tried first, tuned against the most.
+2. **`GroqPreparer`** (Groq, `openai/gpt-oss-120b`) — an independent failure domain, not just a second attempt at the same thing. A Google-side outage or quota exhaustion doesn't take this down too. Same prompt, same output shape (`_build_plan_from_args()` is shared) — providers differ only in the client and how the tool call comes back over the wire.
+3. **`DeterministicPreparer`** — the original keyword classifier + single-pass TF-IDF, no model call at all. Always converges, always dials (routing without calling is a judgment call reserved for the model).
+
+Each provider gets up to 2 attempts (`_MODEL_ATTEMPTS`) before falling through to the next. On a **429** specifically, there's no retry-the-same-provider step at all — straight to the next provider. This was a real, measured cost: a Gemini free-tier 429 carries its own `retryDelay` (observed directly at 55s), and retrying into a quota that hasn't reset yet is a minute spent producing nothing. Any other error (a malformed response, a transient 5xx) still retries the same provider first, so a real provider-specific bug doesn't get silently masked as "it just fell over to Groq that time." `prepare: <provider> preparer rate-limited, failing over immediately` in the logs is what a 429 failover looks like; `prepare: decision case=...` (added alongside this) logs every case's final intent/should_call/route_to/confidence/preparer regardless of which provider produced it.
+
+**`MAX_ITERATIONS = 2`** — cut from 4 (originally raised to 6 mid-session after 4 proved too tight for a genuinely compound question, then cut back down deliberately for latency once the fallback chain existed to absorb the cost). Two total tool calls, searching and submitting combined - not two searches plus a submission, which was a real bug the first time this shipped: the prompt still told the model "two searches is normally enough, stop at three," a threshold the budget could never actually reach, so a plain single-topic query could burn both calls on search and leave nothing to submit with. Fixed by rewriting the instruction to match the real constraint - search at most once, phrasing that one search to cover a compound question if possible, then always submit on the next turn regardless of what came back. Confirmed 3/3 clean after the fix on the query that had failed before.
+
+The remaining tradeoff is real, not eliminated: a question that genuinely needs two *sequential* lookups (the second only knowable after seeing the first) has nowhere to fit within two total calls. Confirmed directly - one such query failed to converge on *both* Gemini and Groq at this cap, then still resolved correctly through `DeterministicPreparer`. Non-convergence degrades the answer from full reasoning to keyword-classified-plus-single-pass-retrieval; it does not fail the case. That degradation is the accepted cost of the speed gain, not an overlooked edge case.
+
+Related, from the same intake path: `POST /api/cases` already returns the moment the case row is inserted — `prepare_call()` and everything after it runs via FastAPI's `BackgroundTasks`, scheduled after the response is sent. The confirmation screen was never waiting on the reasoning loop to begin with; `dispatcher.handle_case()` wraps every phase (including the poll loop) in `try/except` → `_mark_errored()`, so a background exception marks the case failed rather than vanishing silently. Two more speed changes remain proposed but not built — running retrieval before the model instead of as a tool call, and skipping the model entirely on high-confidence keyword matches — held back deliberately to measure the first three before touching them.
 
 ## Scope: three intents, on purpose
 
@@ -69,14 +78,16 @@ The third intent is the feature, not a fallback: "couldn't solve it, but here's 
 
 The dispatcher follows the documented polling rhythm against a live account (wait ~60s, then poll every 5–10s until terminal) and never re-fires a call with a stale identifier — a retry always dispatches a brand-new call and stores the new run id.
 
-**Current status:** `CALLE_API_KEY` has not been configured yet (Day 1 of the build plan — see below), so `calle_client.py` currently falls back to a local mock transport with deterministic per-phone outcomes, purely so the rest of the pipeline (classifier → dispatcher → router → dashboard) can be built and demoed before the account is wired in. `parse_call_response()` is written against a real `get_call_run` payload rather than the docs' shorthand example (uppercase/spaced statuses, `result.extracted`, `result.outcome.*`, string transcript) — see `tests/test_parse_call_response.py` and `tests/replay_fixture.py`. Setting `CALLE_API_KEY` in `.env` switches to real calls with no other code changes. The MCP transport (`plan_call` / `run_call` / `get_call_run`) is the fallback if no API key is issued, and would live in this same file — it is not implemented yet.
+**Current status:** `CALLE_API_KEY` is configured and live — real calls have been placed and resolved end-to-end. `calle_client.py` still supports a local mock transport with deterministic per-phone outcomes (falls back to it automatically when the key is unset), which is how the rest of the pipeline was built and demoed before the account was wired in, and how the test suite exercises the dispatcher without spending real call quota. `parse_call_response()` is written against a real `get_call_run` payload rather than the docs' shorthand example (uppercase/spaced statuses, `result.extracted`, `result.outcome.*`, string transcript) — confirmed against an actual saved response, see `tests/test_parse_call_response.py` and `tests/fixtures/real_call_happy.json`. The MCP transport (`plan_call` / `run_call` / `get_call_run`) would live in this same file if ever needed — not implemented, since the REST transport with a real key has been sufficient.
 
 ## Known limitations
 
-- **Namibia is an International line.** Calls to `+264` numbers are placed from CALL-E's international numbers, which the CALL-E docs describe as primarily for testing. Students will see a foreign number ring rather than a local one. Fix path: request a local NA line from the CALL-E team for production use.
+- **Namibia is an International line, and so are 35 of the 42 countries CALL-E supports.** Verified directly against CALL-E's own regions table, not assumed — only 7 (US, SG, MY, AE, AU, MX, BR) are `Local`; everywhere else, including `+264`, is placed from CALL-E's international numbers, described as primarily for testing. The intake form's country dropdown (`app/data/countries.json`) shows a quiet note under the phone field for every International-line country so a caller expecting an unfamiliar number still answers it. Fix path for Namibia specifically: request a local NA line from the CALL-E team for production use.
 - **The classifier is intentionally simple.** Keyword matching over three intents costs nothing and is transparent to debug; it would be replaced by a real NLU step for a production deployment with more intents.
 - **The relevance threshold is doing its job, and TF-IDF is the reason it sometimes has to.** "What are your office hours" retrieves `office-hours.md` at 0.215 (well above the 0.09 threshold). "Are you open on saturdays and can I come after 5pm" — the same underlying question, phrased differently — scores 0.071 and gets **no reference material at all**, so the agent is told to say it doesn't know and have the right office follow up, rather than answer off a weak match. On a phone call, where nobody sees a citation and nobody can scroll back, refusing to guess is the correct behavior, not a bug — a confidently wrong answer read aloud is worse than an honest "I'll have someone follow up." The cost of that safety property is real, though: TF-IDF is lexical, so it's paraphrase-blind, and that's what's driving the miss above. Embeddings would close this specific gap (`EmbeddingRetriever` is a documented, not-yet-built swap behind the same `Retriever` protocol — see `docs/retrieval-spec.md` §2 for why TF-IDF was chosen first). Re-tune with `scripts/tune_threshold.py` after any KB change.
 - **Single process, SQLite, in-process polling.** Fine for a hackathon dashboard with a handful of concurrent calls; would need a real task queue (Celery, etc.) and a proper database at any real scale.
+- **Curation catches real gaps, not just missing topics.** A taxonomy sweep through the reasoning agent (not real calls) found it inventing specific visa/study-permit requirements from a KB that had exactly one throwaway sentence on the topic. The real source existed the whole time — `kb/nust/NUST Students Related Documents/Notice_International Students 2025_Study Permit.pdf` — sitting auto-ingested but not curated, and not scoring well enough raw to ground an answer. Fixed by curating it properly into `kb/nust/international-students-study-permit.md` (and excluding the now-redundant raw PDF from ingestion) rather than just prompting the model harder not to guess.
+- **The "NUST has four faculties" grouping in `faculty-officers.md` has one unverified seam.** The per-unit officer contacts are the real curated source; the *grouping* of those units under four faculty names was carried over from `scripts/seed_students.py`'s existing `FACULTIES` list (already used for student records elsewhere in this app), not independently confirmed against an authoritative org chart for this specific use. Worth a real check against the actual NUST structure before this ships anywhere it's trusted unsupervised.
 
 ## How this generalises
 
@@ -165,16 +176,9 @@ Split across three free tiers: **Netlify** (frontend), **Render** (backend), **N
 
 **The cold-start caveat, explicitly:** even with UptimeRobot, a spin-down can still happen (a monitor outage, Render's own maintenance) and the first request after one will be slow - `/health` itself won't be slow (it does nothing), but the first real `/api/cases` call will pay the cost of the app waking up, `init_db()`, and the retrieval index either loading from cache or rebuilding. That's what `resume_case()` at startup (`app/dispatcher.py`) is for - a case left "calling" through a spin-down resumes polling instead of being silently abandoned.
 
-## Day 1 checklist (build plan)
-
-- [ ] Place one real call to your own `+264` number by hand via the CALL-E CLI/MCP tools, before trusting the app end to end.
-- [ ] Check the CALL-E dashboard for an API key; set `CALLE_API_KEY` in `.env` once issued.
-- [ ] Confirm `plan_call` / `run_call` / `get_call_run` are available via `calle mcp tools` as a fallback path.
-
 ## Future work
 
-- **Agentic escalation loop — the biggest idea here, deliberately deferred.** When a case can't be resolved on the first call, dispatch a *second* CALL-E call to the relevant office, ask the question on the student's behalf, then call the student back with the answer. Plan → execute → observe → act again, using CALL-E twice per case. This is the one change that would make Ringback itself agentic rather than a deterministic orchestrator, and it's a direct answer to "no transfers, no re-explaining" — the system does the transfer instead of a human. Conditions to build it, not before: core pipeline proven against a *live* CALL-E account (not the mock), the extra call allocation approved, and the frontend already done. It needs a new case status (waiting on an outbound office call) and a second failure surface (what if the office doesn't answer either). Worth revisiting as the demo video's closing beat if all three hold by day 8.
-- **Model-backed classifier and router.** Swap the keyword classifier for a single Claude call returning `{intent, confidence, entities}` — cheap, and handles phrasing keywords miss ("won't let me download it"). Similarly, let a model pick the routing office and write the escalation reason from the structured result, instead of the static `ROUTING_TABLE` dict. Neither changes the architecture; both make the judgment sharper. Worth doing once the pipeline is verified against real CALL-E output.
+- **Agentic escalation loop — the biggest idea here, deliberately deferred.** When a case can't be resolved on the first call, dispatch a *second* CALL-E call to the relevant office, ask the question on the student's behalf, then call the student back with the answer. Plan → execute → observe → act again, using CALL-E twice per case. `prepare_call()` already makes the pre-call reasoning agentic; this would extend that same agent's loop *past* the first dial instead of stopping at "route to a person," and it's a direct answer to "no transfers, no re-explaining" — the system does the transfer instead of a human. Conditions to build it, not before: the extra call allocation approved, and the frontend already done. It needs a new case status (waiting on an outbound office call) and a second failure surface (what if the office doesn't answer either).
 - **Embedding-based retrieval.** `app/retrieval/base.py`'s `Retriever` protocol is designed so an `EmbeddingRetriever` (sentence-transformers) is a one-line swap from `TfidfRetriever` — not built, since it's a ~2GB torch download that buys paraphrase tolerance TF-IDF doesn't have (see Known limitations), which only pays for itself once the corpus is large enough that lexical overlap stops being reliable.
 - **USSD intake** — a short code for students on feature phones with no data. Needs a carrier agreement (MTC/Telecom Namibia); not something that can be scheduled.
 - **A local NA calling line**, so students see a Namibian number rather than an international one. Costs one email to the CALL-E team — worth sending today, can't be built.

@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import inspect, text
 from sqlmodel import Field, SQLModel, create_engine
 
 # One database for everything - case tracking and the student directory
@@ -26,6 +27,7 @@ class Case(SQLModel, table=True):
     student_number: Optional[str] = None
     caller_name: Optional[str] = None
     phone: str
+    country_code: str = "NA"  # ISO alpha-2 (app/data/countries.json) - drives the dial code shown on intake and the region/locale sent to CALL-E
     original_query: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -87,7 +89,26 @@ def set_retrieved_sources(case: Case, value: Optional[list]) -> None:
     case.retrieved_sources_json = json.dumps(value) if value else None
 
 
+def _ensure_country_code_column() -> None:
+    """SQLModel.metadata.create_all() only ever creates tables that don't
+    exist yet - it never alters an existing one. country_code was added to
+    the Case model after both local sqlite and production Neon already had
+    real case rows in a "case" table without it, so the column has to be
+    added by hand, once, idempotently, on every startup - safe to run
+    repeatedly since it's a no-op once the column exists.
+    """
+    inspector = inspect(engine)
+    if "case" not in inspector.get_table_names():
+        return  # fresh database - create_all() above already made it right
+    columns = {c["name"] for c in inspector.get_columns("case")}
+    if "country_code" in columns:
+        return
+    with engine.begin() as conn:
+        conn.execute(text('ALTER TABLE "case" ADD COLUMN country_code VARCHAR DEFAULT \'NA\''))
+
+
 def init_db() -> None:
     from . import models_student  # noqa: F401  (registers its tables on SQLModel.metadata)
 
     SQLModel.metadata.create_all(engine)
+    _ensure_country_code_column()

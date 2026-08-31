@@ -102,6 +102,14 @@ textarea { resize: vertical; }
 
 .phone-input { display: flex; border: 1px solid var(--border); border-radius: var(--r-input); overflow: hidden; }
 .phone-input__prefix { padding: 12px 14px; background: var(--canvas); color: var(--grey600); border-right: 1px solid var(--border); }
+.phone-input__country {
+  border: none;
+  border-right: 1px solid var(--border);
+  background: var(--canvas);
+  color: var(--ink);
+  padding: 12px 10px;
+  flex-shrink: 0;
+}
 .phone-input__number { border: none; flex: 1; padding: 12px 14px; }
 
 /* Confirmation */

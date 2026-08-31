@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from . import dispatcher
+from .countries import country_by_code, load_countries
 from .directory import SqlDirectory
 from .models import (
     Case,
@@ -129,6 +130,7 @@ def get_session():
 
 class IntakeRequest(BaseModel):
     phone: str
+    country_code: str = "NA"  # ISO alpha-2 - defaults to the reference deployment
     query: str
     caller_name: str
     student_number: Optional[str] = None
@@ -142,6 +144,7 @@ class CaseOut(BaseModel):
     student_name: Optional[str]
     caller_name: Optional[str]
     phone: str
+    country_code: str
     original_query: str
     created_at: datetime
     intent: Optional[str]
@@ -174,6 +177,7 @@ class CaseOut(BaseModel):
             student_name=student.name if student else None,
             caller_name=case.caller_name,
             phone=case.phone,
+            country_code=case.country_code,
             original_query=case.original_query,
             created_at=case.created_at,
             intent=case.intent,
@@ -208,6 +212,10 @@ def create_case(
         raise HTTPException(
             400, "Phone number must be in international format, e.g. +264811234567."
         )
+    try:
+        country_by_code(payload.country_code)
+    except KeyError:
+        raise HTTPException(400, f"Unknown country code: {payload.country_code!r}.")
     if not payload.query.strip():
         raise HTTPException(400, "Question cannot be empty.")
     if not payload.caller_name.strip():
@@ -224,6 +232,7 @@ def create_case(
         student_number=payload.student_number,
         caller_name=payload.caller_name.strip(),
         phone=payload.phone,
+        country_code=payload.country_code,
         original_query=payload.query.strip(),
         status="received",
     )
@@ -249,6 +258,16 @@ def get_case(case_id: int, session: Session = Depends(get_session)):
     if not case:
         raise HTTPException(404, "Case not found")
     return CaseOut.from_case(case)
+
+
+@app.get("/api/countries")
+def list_countries():
+    """Drives the intake form's country dropdown - dial code, CALL-E region/
+    locale, and whether the line is local or international, all backend-
+    owned (app/data/countries.json) rather than hardcoded in the component,
+    since CALL-E has already expanded this list once and will again.
+    """
+    return load_countries()
 
 
 @app.get("/api/tenants/{tenant_id}/offices")

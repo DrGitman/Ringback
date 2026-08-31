@@ -36,6 +36,12 @@ export async function createCase(payload) {
   });
 }
 
+export async function listCountries() {
+  const res = await request("/api/countries");
+  if (!res.ok) throw new Error("Could not load country list.");
+  return res.json();
+}
+
 export async function listOffices(tenantId = "nust") {
   const res = await request(`/api/tenants/${encodeURIComponent(tenantId)}/offices`);
   if (!res.ok) throw new Error("Could not load office list.");

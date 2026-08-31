@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlmodel import Session
 
 from .calle_client import CalleClient
+from .countries import country_by_code
 from .directory import SqlDirectory, format_currency
 from .models import (
     Case,
@@ -44,6 +45,21 @@ POLL_INTERVAL = POLL_INTERVAL_LIVE if client.is_live else POLL_INTERVAL_MOCK
 
 def _schema_for(intent: str) -> dict:
     return SCHEMAS.get(intent, TRIAGE)
+
+
+def _region_locale(case: Case) -> tuple:
+    """CALL-E's recipients array takes region + locale alongside the phone
+    number (verified against their real API docs and example, not assumed -
+    see app/data/countries.json). Falls back to (None, None) for an unknown
+    country_code rather than raising, since a lookup miss shouldn't be able
+    to block a dispatch - CalleClient.dispatch() already treats either as
+    optional and omits them from the payload if absent.
+    """
+    try:
+        country = country_by_code(case.country_code)
+    except KeyError:
+        return None, None
+    return country["code"], country["locale"]
 
 
 def _apply_plan(case: Case, plan: CallPlan) -> None:
@@ -275,8 +291,10 @@ async def handle_case(case_id: int) -> None:
             tenant = load_tenant(case.tenant_id)
             student = directory.lookup(case.student_number) if case.student_number else None
             task = build_task(case, student, tenant, plan.briefing)
+            region, locale = _region_locale(case)
             case.run_id = client.dispatch(
-                task=task, phone=case.phone, result_schema=_schema_for(case.intent)
+                task=task, phone=case.phone, result_schema=_schema_for(case.intent),
+                region=region, locale=locale,
             )
             case.call_attempts = 1
             case.status = "calling"
@@ -370,8 +388,10 @@ async def _poll_case(case_id: int) -> None:
                     session.add(case)
                     session.commit()
                     task = build_task(case, student, tenant, plan.briefing)
+                    region, locale = _region_locale(case)
                     case.run_id = client.dispatch(
-                        task=task, phone=case.phone, result_schema=_schema_for(case.intent)
+                        task=task, phone=case.phone, result_schema=_schema_for(case.intent),
+                        region=region, locale=locale,
                     )
                     case.call_attempts += 1
                     case.status = "calling"

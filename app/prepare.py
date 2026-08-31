@@ -28,7 +28,7 @@ from typing import List, Optional, Protocol
 
 from google import genai
 from google.genai import types
-from groq import Groq
+from groq import Groq, RateLimitError as GroqRateLimitError
 
 from .classifier import classify
 from .directory import Student, format_currency
@@ -61,13 +61,16 @@ MODEL_NAME = "gemini-3.5-flash-lite"
 # search_kb calls and the final submit_plan call share this same budget - a
 # model that spends all of it on searches (seen in testing: 4 straight
 # search_kb calls with steadily less relevant phrasing, on a question the KB
-# genuinely doesn't cover) never gets to submit_plan at all and the whole
-# case errors out. 6 gives headroom for a genuinely compound question (2-3
-# searches) plus the submission itself, and the prompt now also tells the
-# model directly to stop searching and submit rather than relying on the
-# budget alone to force it.
+# genuinely doesn't cover) never gets to submit_plan at all and that attempt
+# errors out. Cut to 2 deliberately, for latency - most queries resolve on
+# the first search, and each iteration is a full round-trip. This makes
+# hitting the ceiling on a genuinely compound question more likely, not
+# less; that's accepted, not overlooked, because prepare_call() already
+# retries and fails over across two providers before ever reaching
+# DeterministicPreparer - non-convergence here degrades gracefully to a
+# working answer, it does not fail the case.
 GROQ_MODEL_NAME = "openai/gpt-oss-120b"
-MAX_ITERATIONS = 6
+MAX_ITERATIONS = 2
 _MODEL_ATTEMPTS = 2
 _MODEL_BACKOFF_SECONDS = 1.5
 
@@ -322,12 +325,13 @@ def _system_instruction(query: str, student: Optional[Student], tenant: dict, of
         f"Valid intents: {', '.join(INTENTS)}.\n\n"
         "Work out what the caller actually needs, including how a KB rule and their own "
         "record interact if both apply (e.g. a fee balance can block a subject drop "
-        "regardless of the deadline). Use search_kb to look up anything you need - call "
-        "it again with different phrasing only if the first pass clearly missed part of "
-        "a compound question. Two search_kb calls is normally enough; if you've made "
-        "three and still have nothing relevant, stop searching - that's your answer, it "
-        "isn't covered. Call submit_plan next regardless of what search_kb returned; "
-        "never spend your last remaining call on another search.\n\n"
+        "regardless of the deadline). You have exactly two tool calls total, searching "
+        "and submitting combined - never search twice, that leaves nothing to submit "
+        "with and the whole case fails. If you need to look something up, search "
+        "once - phrase that one search as well as you can, covering both parts of a "
+        "compound question if there are two - then call submit_plan on your next turn "
+        "no matter what came back, even empty or partial. If you're already confident "
+        "without searching, call submit_plan immediately on your first turn instead.\n\n"
         "Set should_call to false only for one of these specific reasons, nothing else: "
         "it needs someone to see the account directly, needs in-person identity "
         "verification (only when the question is about that specific caller's own "
@@ -565,6 +569,21 @@ _PROVIDERS = [
 ]
 
 
+def _is_rate_limited(exc: Exception) -> bool:
+    """429 detection across both providers' distinct exception shapes.
+    Gemini raises ClientError/ServerError (both APIError subclasses) with a
+    real .code set from the HTTP status; Groq raises a dedicated
+    RateLimitError. Deliberately narrow - only an actual quota/rate signal
+    skips the same-provider retry below. Anything else (a malformed
+    response, a transient 5xx) still gets retried on the same provider
+    first, since switching providers on every hiccup would mask a provider-
+    specific bug behind "it just fell over to Groq that time."
+    """
+    if isinstance(exc, GroqRateLimitError):
+        return True
+    return getattr(exc, "code", None) == 429
+
+
 def prepare_call(query: str, student: Optional[Student], tenant: dict) -> CallPlan:
     for name, get_client, preparer_cls in _PROVIDERS:
         client = get_client()
@@ -574,6 +593,16 @@ def prepare_call(query: str, student: Optional[Student], tenant: dict) -> CallPl
             try:
                 return preparer_cls(client).prepare(query, student, tenant)
             except Exception as exc:
+                if _is_rate_limited(exc):
+                    # Observed directly: a 55s retry-after on an exhausted
+                    # quota, twice, before giving up - a minute spent
+                    # retrying a limit that hasn't reset. Go straight to the
+                    # next provider instead of waiting it out here.
+                    logger.warning(
+                        "prepare: %s preparer rate-limited, failing over immediately (%s)",
+                        name, exc,
+                    )
+                    break
                 logger.warning(
                     "prepare: %s preparer attempt %d/%d failed (%s)",
                     name,

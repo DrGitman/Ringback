@@ -159,13 +159,22 @@ class _RealTransport:
             timeout=30,
         )
 
-    def dispatch(self, task: str, phone: str, result_schema: dict) -> str:
+    def dispatch(
+        self, task: str, phone: str, result_schema: dict,
+        region: Optional[str] = None, locale: Optional[str] = None,
+    ) -> str:
+        recipient = {"phones": [phone]}
+        if region:
+            recipient["region"] = region
+        if locale:
+            recipient["locale"] = locale
+
         def _do():
             response = self._client.post(
                 "/v1/calls",
                 json={
                     "task": task,
-                    "recipients": [{"phones": [phone]}],
+                    "recipients": [recipient],
                     "recipient_result_schema": result_schema,
                 },
             )
@@ -257,7 +266,10 @@ class _MockTransport:
     def __init__(self):
         self._runs: dict = {}
 
-    def dispatch(self, task: str, phone: str, result_schema: dict) -> str:
+    def dispatch(
+        self, task: str, phone: str, result_schema: dict,
+        region: Optional[str] = None, locale: Optional[str] = None,
+    ) -> str:
         if phone not in self._SCENARIOS:
             raise ValueError(
                 f"Mock transport has no scenario for {phone!r} - add it to "
@@ -332,8 +344,11 @@ class CalleClient:
             self._transport = _MockTransport()
             self.is_live = False
 
-    def dispatch(self, task: str, phone: str, result_schema: dict) -> str:
-        return self._transport.dispatch(task, phone, result_schema)
+    def dispatch(
+        self, task: str, phone: str, result_schema: dict,
+        region: Optional[str] = None, locale: Optional[str] = None,
+    ) -> str:
+        return self._transport.dispatch(task, phone, result_schema, region=region, locale=locale)
 
     def get_result(self, run_id: str) -> CallResult:
         return self._transport.get_result(run_id)
