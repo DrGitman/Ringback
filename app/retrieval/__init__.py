@@ -67,6 +67,13 @@ _SUPERSEDED_PDF_STEMS = {
     # once the current date moved into 2026 and the -2025 versions of those
     # files went stale. Same reasoning as the 2025 calendar PDFs above.
     "2026-INSTITUTIONAL-CALENDAR",
+    # Curated into international-students-study-permit.md after a taxonomy
+    # sweep found the model inventing visa/permit specifics from nothing -
+    # this PDF was the one real source for that topic, sitting auto-ingested
+    # but apparently not scoring well enough raw to ground the answer. Same
+    # reasoning as the other superseded PDFs: keeping both would duplicate
+    # the same content at lower quality and dilute retrieval.
+    "Notice_International Students 2025_Study Permit",
 }
 
 # Measured, not assumed: these four faculty prospectuses alone produced

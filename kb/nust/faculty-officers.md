@@ -4,6 +4,12 @@ topic: faculty_officers
 office: registrar
 ---
 
+### Faculties
+
+NUST has four faculties: the Faculty of Health, Natural Resources and Applied Sciences; the Faculty of Computing and Informatics; the Faculty of Engineering and the Built Environment (organised as the School of Engineering and the School of The Built Environment); and the Faculty of Commerce, Human Sciences and Education (organised as the School of Human Sciences and Education, the Department of Economics, Accounting and Finance, the Department of Marketing, Logistics and Sport Management / Department of Hospitality and Tourism, and the Department of Governance and Management Sciences) - plus three satellite sites at Rietfontein, Eenhana, and Lüderitz.
+
+### Faculty officer contacts
+
 Every faculty, school, and department has a named faculty officer (most also have an assistant officer) who handles that unit's day-to-day student administration — things a general Registrar's Office query can't resolve because they're specific to one faculty's records or timetable. A caller asking "who do I talk to about my faculty" or asking for a specific faculty's contact should be given the name, phone, and email below rather than the generic Registrar's Office number.
 
 Senior Faculty Officer (all faculties): Ms Indira J Mbako, imbako@nust.na, +264 61 207 2170.
