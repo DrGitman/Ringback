@@ -227,13 +227,32 @@ def create_case(
             404, "We couldn't find that student number. Leave it blank if you're not sure."
         )
 
+    normalized_query = payload.query.strip()
+
+    # Same caller, same exact question, still in flight (not resolved/
+    # routed/failed) - reuse it instead of dispatching a second call for
+    # what's almost certainly the same double-click or resubmit-after-
+    # reload, not a genuinely new request. A case that's already reached a
+    # terminal status is fair game for a fresh one - asking the same
+    # question again after being helped is a new request, not a duplicate.
+    existing = session.exec(
+        select(Case).where(
+            Case.tenant_id == payload.tenant_id,
+            Case.phone == payload.phone,
+            Case.original_query == normalized_query,
+            Case.status.not_in(["resolved", "routed", "failed"]),
+        )
+    ).first()
+    if existing:
+        return CaseOut.from_case(existing)
+
     case = Case(
         tenant_id=payload.tenant_id,
         student_number=payload.student_number,
         caller_name=payload.caller_name.strip(),
         phone=payload.phone,
         country_code=payload.country_code,
-        original_query=payload.query.strip(),
+        original_query=normalized_query,
         status="received",
     )
     session.add(case)
